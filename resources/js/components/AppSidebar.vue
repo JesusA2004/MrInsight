@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { FileText, FolderOpen, Home, Image, LayoutGrid, Share2, Tags } from '@lucide/vue';
+import { ClipboardList, Database, FileText, FolderOpen, Home, Image, LayoutGrid, Palette, Share2, Tags } from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -14,6 +14,9 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes/admin';
+import actividad from '@/routes/admin/actividad';
+import almacenamiento from '@/routes/admin/almacenamiento';
+import apariencia from '@/routes/admin/apariencia';
 import publicaciones from '@/routes/admin/publicaciones';
 import categorias from '@/routes/admin/categorias';
 import multimedia from '@/routes/admin/multimedia';
@@ -47,6 +50,21 @@ const mainNavItems: NavItem[] = [
         title: 'Inicio',
         href: inicio.edit(),
         icon: Home,
+    },
+    {
+        title: 'Apariencia',
+        href: apariencia.edit(),
+        icon: Palette,
+    },
+    {
+        title: 'Almacenamiento',
+        href: almacenamiento.index(),
+        icon: Database,
+    },
+    {
+        title: 'Actividad',
+        href: actividad.index(),
+        icon: ClipboardList,
     },
     {
         title: 'Redes sociales',

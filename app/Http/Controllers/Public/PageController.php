@@ -29,6 +29,7 @@ class PageController extends Controller
                 'title' => $entry->title,
                 'date' => $entry->entry_date?->toIso8601String(),
                 'coverUrl' => $entry->cover?->url(),
+                'body' => $entry->body,
             ]),
         ]);
     }

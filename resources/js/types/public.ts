@@ -2,7 +2,17 @@ export interface SiteIdentity {
     name: string;
     subtitle: string;
     logoMediaId: number | null;
+    logoUrl: string | null;
     footerTagline: string;
+}
+
+export interface ThemePayload {
+    colors: { background?: string; foreground?: string; accent?: string; muted?: string };
+    fonts: { display?: string; body?: string };
+    buttons: { style?: 'solid' | 'outline'; radius?: 'none' | 'sm' | 'md' | 'lg' | 'full' };
+    cards: { radius?: 'none' | 'sm' | 'md' | 'lg' | 'xl' };
+    markUrl: string | null;
+    faviconUrl: string | null;
 }
 
 export interface CategorySummary {
@@ -36,4 +46,5 @@ export interface PublicPageProps {
     site: SiteIdentity;
     categories: CategorySummary[];
     social: SocialLinkSummary[];
+    theme: ThemePayload;
 }

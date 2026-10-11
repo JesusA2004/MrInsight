@@ -36,7 +36,14 @@ const instagram = computed(() =>
     >
         <div class="container-editorial flex h-20 items-center justify-between">
             <Link href="/" class="flex items-center gap-3">
+                <img
+                    v-if="site.logoUrl"
+                    :src="site.logoUrl"
+                    :alt="site.name"
+                    class="size-9 shrink-0 object-contain"
+                />
                 <svg
+                    v-else
                     viewBox="0 0 64 64"
                     class="size-9 shrink-0"
                     aria-hidden="true"
@@ -92,7 +99,7 @@ const instagram = computed(() =>
                     :href="instagram.url"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="inline-flex h-[50px] items-center rounded-md bg-gold px-5 text-sm font-medium text-ink transition-colors hover:bg-gold-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
+                    class="inline-flex h-[50px] items-center rounded-[var(--editorial-radius-button)] bg-gold px-5 text-sm font-medium text-ink transition-colors hover:bg-gold-soft focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-gold"
                 >
                     Sígueme en Instagram
                 </a>
@@ -133,7 +140,7 @@ const instagram = computed(() =>
                     :href="instagram.url"
                     target="_blank"
                     rel="noopener noreferrer"
-                    class="flex h-[50px] items-center justify-center rounded-md bg-gold px-5 text-sm font-medium text-ink"
+                    class="flex h-[50px] items-center justify-center rounded-[var(--editorial-radius-button)] bg-gold px-5 text-sm font-medium text-ink"
                 >
                     Sígueme en Instagram
                 </a>

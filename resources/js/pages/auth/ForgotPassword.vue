@@ -11,8 +11,8 @@ import { email } from '@/routes/password';
 
 defineOptions({
     layout: {
-        title: 'Forgot password',
-        description: 'Enter your email to receive a password reset link',
+        title: 'Recuperar contraseña',
+        description: 'Escribe tu correo para recibir un enlace de recuperación.',
     },
 });
 
@@ -22,45 +22,31 @@ defineProps<{
 </script>
 
 <template>
-    <Head title="Forgot password" />
+    <Head title="Recuperar contraseña" />
 
-    <div
-        v-if="status"
-        class="mb-4 text-center text-sm font-medium text-green-600"
-    >
+    <div v-if="status" class="mb-4 text-center text-sm font-medium text-emerald-500">
         {{ status }}
     </div>
 
     <div class="space-y-6">
         <Form v-bind="email.form()" v-slot="{ errors, processing }">
             <div class="grid gap-2">
-                <Label for="email">Email address</Label>
-                <Input
-                    id="email"
-                    type="email"
-                    name="email"
-                    autocomplete="off"
-                    v-focus
-                    placeholder="email@example.com"
-                />
+                <Label for="email">Correo electrónico</Label>
+                <Input id="email" type="email" name="email" autocomplete="off" v-focus placeholder="tu@correo.com" />
                 <InputError :message="errors.email" />
             </div>
 
             <div class="my-6 flex items-center justify-start">
-                <Button
-                    class="w-full"
-                    :disabled="processing"
-                    data-test="email-password-reset-link-button"
-                >
+                <Button class="w-full bg-gold text-ink hover:bg-gold-soft" :disabled="processing" data-test="email-password-reset-link-button">
                     <Spinner v-if="processing" />
-                    Email password reset link
+                    Enviar enlace de recuperación
                 </Button>
             </div>
         </Form>
 
-        <div class="space-x-1 text-center text-sm text-muted-foreground">
-            <span>Or, return to</span>
-            <TextLink :href="login()">log in</TextLink>
+        <div class="space-x-1 text-center text-sm text-mist">
+            <span>O vuelve a</span>
+            <TextLink :href="login()" class="text-gold hover:text-gold-soft">iniciar sesión</TextLink>
         </div>
     </div>
 </template>

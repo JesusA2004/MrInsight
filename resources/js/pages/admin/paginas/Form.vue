@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { Head, router, useForm } from '@inertiajs/vue3';
-import { ImagePlus, Plus, Trash2 } from '@lucide/vue';
+import { ImagePlus, Pencil, Plus, Trash2 } from '@lucide/vue';
 import { ref } from 'vue';
 import MediaPickerDialog, { type PickedMedia } from '@/components/admin/MediaPickerDialog.vue';
 import PostEditor from '@/components/admin/PostEditor.vue';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogContent,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -17,6 +24,7 @@ interface PageEntryRow {
     id: number;
     title: string;
     entry_date: string | null;
+    body: TiptapContent | null;
     is_visible: boolean;
     order: number;
     cover: { id: number; url: string | null } | null;
@@ -83,13 +91,51 @@ function toggleEntryVisible(entry: PageEntryRow) {
     router.put(paginasEntradas.update(entry.id).url, {
         title: entry.title,
         entry_date: entry.entry_date,
+        body: entry.body,
         is_visible: !entry.is_visible,
         order: entry.order,
     }, { preserveScroll: true });
 }
 
 function destroyEntry(id: number) {
-    router.delete(paginasEntradas.destroy(id).url);
+    router.delete(paginasEntradas.destroy(id).url, { preserveScroll: true });
+}
+
+// --- Edición completa de una entrada (título, fecha, portada, contenido) ---
+const editingEntry = ref<PageEntryRow | null>(null);
+const entryEditForm = useForm<{ title: string; entry_date: string; body: TiptapContent | null; cover_media_id: number | null; is_visible: boolean; order: number }>({
+    title: '',
+    entry_date: '',
+    body: null,
+    cover_media_id: null,
+    is_visible: true,
+    order: 0,
+});
+const entryCoverUrl = ref<string | null>(null);
+const entryCoverPickerOpen = ref(false);
+
+function openEntryEditor(entry: PageEntryRow) {
+    editingEntry.value = entry;
+    entryEditForm.title = entry.title;
+    entryEditForm.entry_date = entry.entry_date ?? '';
+    entryEditForm.body = entry.body;
+    entryEditForm.cover_media_id = entry.cover?.id ?? null;
+    entryEditForm.is_visible = entry.is_visible;
+    entryEditForm.order = entry.order;
+    entryCoverUrl.value = entry.cover?.url ?? null;
+}
+
+function onEntryCoverSelected(media: PickedMedia) {
+    entryEditForm.cover_media_id = media.id;
+    entryCoverUrl.value = media.url;
+}
+
+function saveEntryEdit() {
+    if (!editingEntry.value) return;
+    entryEditForm.put(paginasEntradas.update(editingEntry.value.id).url, {
+        preserveScroll: true,
+        onSuccess: () => (editingEntry.value = null),
+    });
 }
 </script>
 
@@ -175,6 +221,9 @@ function destroyEntry(id: number) {
                         <p class="text-xs text-muted-foreground">{{ entry.entry_date }}</p>
                     </div>
                     <Switch :checked="entry.is_visible" @update:checked="() => toggleEntryVisible(entry)" />
+                    <Button variant="ghost" size="icon-sm" @click="openEntryEditor(entry)">
+                        <Pencil class="size-4" />
+                    </Button>
                     <Button variant="ghost" size="icon-sm" @click="destroyEntry(entry.id)">
                         <Trash2 class="size-4" />
                     </Button>
@@ -184,4 +233,48 @@ function destroyEntry(id: number) {
     </div>
 
     <MediaPickerDialog v-model:open="coverPickerOpen" type="image" @select="onCoverSelected" />
+
+    <Dialog :open="editingEntry !== null" @update:open="(v) => !v && (editingEntry = null)">
+        <DialogContent class="max-h-[85vh] max-w-2xl overflow-y-auto">
+            <DialogHeader>
+                <DialogTitle>Editar entrada — {{ editingEntry?.title }}</DialogTitle>
+            </DialogHeader>
+            <div class="flex flex-col gap-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="grid gap-2">
+                        <Label>Título</Label>
+                        <Input v-model="entryEditForm.title" />
+                    </div>
+                    <div class="grid gap-2">
+                        <Label>Fecha</Label>
+                        <Input v-model="entryEditForm.entry_date" type="date" />
+                    </div>
+                </div>
+                <div class="grid gap-2">
+                    <Label>Fotografía</Label>
+                    <button
+                        type="button"
+                        class="flex aspect-video w-full max-w-xs items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/40 hover:border-primary"
+                        @click="entryCoverPickerOpen = true"
+                    >
+                        <img v-if="entryCoverUrl" :src="entryCoverUrl" alt="" class="size-full object-cover" />
+                        <span v-else class="flex flex-col items-center gap-2 text-sm text-muted-foreground">
+                            <ImagePlus class="size-6" />
+                            Elegir fotografía
+                        </span>
+                    </button>
+                </div>
+                <div class="grid gap-2">
+                    <Label>Contenido (encabezados, párrafos, imágenes, videos, citas)</Label>
+                    <PostEditor v-model:content="entryEditForm.body" />
+                </div>
+            </div>
+            <DialogFooter>
+                <Button variant="outline" @click="editingEntry = null">Cancelar</Button>
+                <Button :disabled="entryEditForm.processing" @click="saveEntryEdit">Guardar entrada</Button>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
+
+    <MediaPickerDialog v-model:open="entryCoverPickerOpen" type="image" @select="onEntryCoverSelected" />
 </template>

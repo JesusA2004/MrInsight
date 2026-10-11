@@ -8,6 +8,7 @@ use App\Models\MediaCollection;
 use App\Models\StorageProvider;
 use App\Services\ActivityLogger;
 use App\Services\MediaUploadService;
+use App\Services\MediaUsageService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -99,14 +100,33 @@ class MediaController extends Controller
         return response()->json(['media' => $this->toArray($media)]);
     }
 
-    public function destroy(Media $media, ActivityLogger $activity): JsonResponse
+    public function usage(Media $media, MediaUsageService $usage): JsonResponse
     {
         Gate::authorize('delete', $media);
 
+        return response()->json(['usages' => $usage->usages($media)]);
+    }
+
+    public function destroy(Request $request, Media $media, MediaUsageService $usage, ActivityLogger $activity): JsonResponse
+    {
+        Gate::authorize('delete', $media);
+
+        $usages = $usage->usages($media);
+        $force = $request->boolean('force');
+
+        if ($usages !== [] && ! $force) {
+            return response()->json(['usages' => $usages], 409);
+        }
+
         $name = $media->original_filename;
+
+        if ($usages !== []) {
+            $usage->clearReferences($media);
+        }
+
         $media->delete();
 
-        $activity->log('multimedia.eliminado', $media, ['filename' => $name]);
+        $activity->log('multimedia.eliminado', $media, ['filename' => $name, 'forzado' => $force && $usages !== []]);
 
         return response()->json(['deleted' => true]);
     }

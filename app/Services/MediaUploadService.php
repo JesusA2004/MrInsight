@@ -22,6 +22,30 @@ use Illuminate\Support\Str;
  */
 class MediaUploadService
 {
+    /**
+     * MIME reales (detectados por contenido, no por la extensión ni por el
+     * encabezado que declaró el cliente) que nunca deben entrar a la
+     * biblioteca, sin importar qué extensión o mimeType declarado traiga el
+     * archivo. Cubre el caso central: un script PHP (o HTML, o un
+     * ejecutable) renombrado como "foto.jpg" para intentar quedar servido
+     * desde el disco de medios.
+     *
+     * @var list<string>
+     */
+    private const DENIED_MIME_TYPES = [
+        'text/x-php',
+        'application/x-php',
+        'application/x-httpd-php',
+        'text/html',
+        'application/xhtml+xml',
+        'text/x-shellscript',
+        'application/x-sh',
+        'application/x-executable',
+        'application/x-elf',
+        'application/x-msdownload',
+        'application/x-msdos-program',
+    ];
+
     public function upload(UploadedFile $file, ?string $collectionPath = null): Media
     {
         $realPath = $file->getRealPath();
@@ -38,6 +62,14 @@ class MediaUploadService
         );
     }
 
+    /**
+     * @param  string  $mimeType  Tipo declarado (header del cliente o el que
+     *                            registró la sesión de subida por
+     *                            fragmentos). Se usa para decidir qué
+     *                            pipeline corre (imagen/video) — nunca para
+     *                            decidir si el archivo es peligroso, eso lo
+     *                            decide únicamente el contenido real.
+     */
     public function ingest(
         string $absoluteTempPath,
         string $originalFilename,
@@ -45,6 +77,12 @@ class MediaUploadService
         int $size,
         ?string $collectionPath = null,
     ): Media {
+        $detectedMime = (string) (new \finfo(FILEINFO_MIME_TYPE))->file($absoluteTempPath);
+
+        if (in_array($detectedMime, self::DENIED_MIME_TYPES, true)) {
+            throw new \RuntimeException("Tipo de archivo no permitido ({$detectedMime}).");
+        }
+
         $disk = $this->activeDisk();
         $collection = $this->resolveCollection($collectionPath ?? 'mr-insight/general');
         $type = MediaType::fromMime($mimeType);

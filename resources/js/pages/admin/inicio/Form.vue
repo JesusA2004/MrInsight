@@ -1,11 +1,18 @@
 <script setup lang="ts">
-import { Head, useForm } from '@inertiajs/vue3';
-import { ImagePlus } from '@lucide/vue';
+import { Head, router, useForm } from '@inertiajs/vue3';
+import { ImagePlus, Repeat } from '@lucide/vue';
 import { ref } from 'vue';
+import { VueDraggable } from 'vue-draggable-plus';
 import MediaPickerDialog, { type PickedMedia } from '@/components/admin/MediaPickerDialog.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -16,6 +23,17 @@ interface SectionRow {
     section_key: string;
     is_visible: boolean;
     order: number;
+}
+
+interface FeaturedCandidate extends PostSummary {
+    isFeatured: boolean;
+}
+
+interface CategoryPreview {
+    category_id: number;
+    category: string;
+    post: PostSummary | null;
+    candidates: FeaturedCandidate[];
 }
 
 const props = defineProps<{
@@ -33,7 +51,7 @@ const props = defineProps<{
     procesoPreview: { title: string };
     footer: { tagline: string };
     sections: SectionRow[];
-    empiezaAquiPreview: { category: string; post: PostSummary | null }[];
+    empiezaAquiPreview: CategoryPreview[];
 }>();
 
 defineOptions({
@@ -85,6 +103,25 @@ function updateTitleLine(index: number, value: string) {
 
 function save() {
     form.put(inicio.update().url);
+}
+
+function onSectionsReordered() {
+    form.sections.forEach((section, index) => {
+        section.order = index;
+    });
+}
+
+// --- Selector de publicación destacada por categoría ---
+const featuredPickerCategory = ref<CategoryPreview | null>(null);
+
+function chooseFeatured(post: FeaturedCandidate) {
+    if (!featuredPickerCategory.value) return;
+
+    router.post(
+        inicio.destacados().url,
+        { category_id: featuredPickerCategory.value.category_id, post_id: post.id },
+        { preserveScroll: true, onSuccess: () => (featuredPickerCategory.value = null) },
+    );
 }
 </script>
 
@@ -150,22 +187,31 @@ function save() {
                     <Input v-model="form.empieza_aqui.title" />
                 </div>
                 <div class="grid gap-2">
-                    <Label class="text-muted-foreground">Vista previa (la publicación destacada o más reciente de cada categoría)</Label>
+                    <Label class="text-muted-foreground">Publicación destacada por categoría</Label>
                     <div class="flex flex-col gap-2">
-                        <div v-for="item in empiezaAquiPreview" :key="item.category" class="flex items-center gap-3 rounded-lg border p-2">
+                        <div v-for="item in empiezaAquiPreview" :key="item.category_id" class="flex items-center gap-3 rounded-lg border p-2">
                             <div class="size-10 shrink-0 overflow-hidden rounded bg-muted">
                                 <img v-if="item.post?.coverUrl" :src="item.post.coverUrl" class="size-full object-cover" alt="" />
                             </div>
                             <div class="min-w-0 flex-1">
                                 <p class="text-xs text-muted-foreground">{{ item.category }}</p>
-                                <p class="truncate text-sm font-medium">{{ item.post?.title ?? 'Sin publicación destacada aún' }}</p>
+                                <p class="truncate text-sm font-medium">{{ item.post?.title ?? 'Sin publicaciones todavía' }}</p>
+                                <p v-if="item.post?.publishedAt" class="text-xs text-muted-foreground">
+                                    {{ new Date(item.post.publishedAt).toLocaleDateString('es-MX') }}
+                                </p>
                             </div>
                             <Badge v-if="item.post" variant="outline">Publicado</Badge>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                :disabled="item.candidates.length === 0"
+                                @click="featuredPickerCategory = item"
+                            >
+                                <Repeat class="size-3.5" />
+                                Cambiar
+                            </Button>
                         </div>
                     </div>
-                    <p class="text-xs text-muted-foreground">
-                        Para cambiarla, marca otra publicación como «Destacada» desde Publicaciones.
-                    </p>
                 </div>
             </CardContent>
         </Card>
@@ -225,12 +271,20 @@ function save() {
         </Card>
 
         <Card>
-            <CardHeader><CardTitle>Secciones visibles</CardTitle></CardHeader>
-            <CardContent class="flex flex-col divide-y">
-                <div v-for="section in form.sections" :key="section.section_key" class="flex items-center justify-between py-2">
-                    <span class="text-sm">{{ sectionLabels[section.section_key] ?? section.section_key }}</span>
-                    <Switch v-model:checked="section.is_visible" />
-                </div>
+            <CardHeader>
+                <CardTitle>Secciones visibles</CardTitle>
+                <p class="text-xs text-muted-foreground">Arrastra para cambiar el orden en que aparecen en el inicio.</p>
+            </CardHeader>
+            <CardContent class="p-0">
+                <VueDraggable v-model="form.sections" class="flex flex-col divide-y" handle=".drag-handle" @end="onSectionsReordered">
+                    <div v-for="section in form.sections" :key="section.section_key" class="flex items-center justify-between gap-3 px-4 py-2">
+                        <div class="flex items-center gap-2">
+                            <span class="drag-handle cursor-grab text-muted-foreground select-none">⠿</span>
+                            <span class="text-sm">{{ sectionLabels[section.section_key] ?? section.section_key }}</span>
+                        </div>
+                        <Switch v-model:checked="section.is_visible" />
+                    </div>
+                </VueDraggable>
             </CardContent>
         </Card>
 
@@ -239,4 +293,35 @@ function save() {
 
     <MediaPickerDialog v-model:open="heroPickerOpen" type="image" @select="onHeroPhoto" />
     <MediaPickerDialog v-model:open="historiaPickerOpen" type="image" @select="onHistoriaPhoto" />
+
+    <Dialog :open="featuredPickerCategory !== null" @update:open="(v) => !v && (featuredPickerCategory = null)">
+        <DialogContent class="max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+                <DialogTitle>Elegir destacada — {{ featuredPickerCategory?.category }}</DialogTitle>
+            </DialogHeader>
+            <div class="flex flex-col gap-2">
+                <button
+                    v-for="candidate in featuredPickerCategory?.candidates ?? []"
+                    :key="candidate.id"
+                    type="button"
+                    class="flex items-center gap-3 rounded-lg border p-2 text-left hover:border-primary"
+                    @click="chooseFeatured(candidate)"
+                >
+                    <div class="size-12 shrink-0 overflow-hidden rounded bg-muted">
+                        <img v-if="candidate.coverUrl" :src="candidate.coverUrl" class="size-full object-cover" alt="" />
+                    </div>
+                    <div class="min-w-0 flex-1">
+                        <p class="truncate text-sm font-medium">{{ candidate.title }}</p>
+                        <p class="text-xs text-muted-foreground">
+                            {{ candidate.publishedAt ? new Date(candidate.publishedAt).toLocaleDateString('es-MX') : '' }}
+                        </p>
+                    </div>
+                    <Badge v-if="candidate.isFeatured" variant="default">Destacada</Badge>
+                </button>
+                <p v-if="!featuredPickerCategory?.candidates.length" class="py-6 text-center text-sm text-muted-foreground">
+                    No hay publicaciones publicadas en esta categoría todavía.
+                </p>
+            </div>
+        </DialogContent>
+    </Dialog>
 </template>

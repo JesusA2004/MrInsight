@@ -12,6 +12,8 @@ use App\Models\SiteSetting;
 use App\Services\ActivityLogger;
 use App\Services\PostPresenter;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -29,17 +31,24 @@ class HomeSettingsController extends Controller
 
         $categories = Category::query()->where('status', 'active')->orderBy('order')->get();
         $preview = $categories->map(function (Category $category) use ($presenter) {
-            $post = Post::query()
+            $publishedInCategory = Post::query()
                 ->where('category_id', $category->id)
                 ->published()
-                ->orderByDesc('is_featured')
-                ->orderByDesc('published_at')
                 ->with('cover')
-                ->first();
+                ->orderByDesc('published_at')
+                ->limit(20)
+                ->get();
+
+            $featured = $publishedInCategory->firstWhere('is_featured', true) ?? $publishedInCategory->first();
 
             return [
+                'category_id' => $category->id,
                 'category' => $category->name,
-                'post' => $post ? $presenter->summary($post) : null,
+                'post' => $featured ? $presenter->summary($featured) : null,
+                'candidates' => $publishedInCategory->map(fn (Post $p) => [
+                    ...$presenter->summary($p),
+                    'isFeatured' => $p->is_featured,
+                ])->values(),
             ];
         });
 
@@ -86,5 +95,34 @@ class HomeSettingsController extends Controller
         $activity->log('inicio.actualizado');
 
         return back()->with('success', 'Inicio actualizado.');
+    }
+
+    /**
+     * Destaca una publicación para su categoría directamente desde /admin/inicio,
+     * sin tener que entrar a Publicaciones. Solo acepta publicaciones ya
+     * publicadas (la columna `published()` ya excluye borradores y archivadas)
+     * y garantiza que quede como único destacado de esa categoría.
+     */
+    public function setFeatured(Request $request, ActivityLogger $activity): RedirectResponse
+    {
+        $data = $request->validate([
+            'category_id' => ['required', 'integer', 'exists:categories,id'],
+            'post_id' => ['required', 'integer', 'exists:posts,id'],
+        ]);
+
+        $post = Post::query()
+            ->where('id', $data['post_id'])
+            ->where('category_id', $data['category_id'])
+            ->published()
+            ->firstOrFail();
+
+        Gate::authorize('feature', $post);
+
+        Post::query()->where('category_id', $data['category_id'])->update(['is_featured' => false]);
+        $post->update(['is_featured' => true]);
+
+        $activity->log('inicio.destacado_cambiado', $post, ['title' => $post->title]);
+
+        return back()->with('success', 'Publicación destacada actualizada.');
     }
 }

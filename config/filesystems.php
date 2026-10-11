@@ -61,6 +61,25 @@ return [
             'report' => false,
         ],
 
+        // Proveedor Synology NAS, alcanzable únicamente a través de una red
+        // Tailscale privada (ver /docs/SYNOLOGY_TAILSCALE.md). NAS_SFTP_HOST
+        // debe ser el nombre MagicDNS del NAS dentro del tailnet, nunca una
+        // IP pública. Mientras estas variables no existan en .env, este
+        // disco queda definido pero sin credenciales (no se escriben aquí
+        // valores de ejemplo) y el proveedor "synology" permanece inactivo
+        // (ver StorageProviderSeeder).
+        'media_synology' => [
+            'driver' => 'sftp',
+            'host' => env('NAS_SFTP_HOST'),
+            'port' => (int) env('NAS_SFTP_PORT', 22),
+            'username' => env('NAS_SFTP_USERNAME'),
+            'password' => env('NAS_SFTP_PASSWORD'),
+            'privateKey' => env('NAS_SFTP_PRIVATE_KEY_PATH'),
+            'root' => env('NAS_SFTP_ROOT', '/mr-insight'),
+            'timeout' => 10,
+            'throw' => false,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

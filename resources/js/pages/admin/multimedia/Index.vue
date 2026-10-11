@@ -13,6 +13,16 @@ import { ref } from 'vue';
 import DestinationPicker, {
     type CollectionNode,
 } from '@/components/admin/DestinationPicker.vue';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -146,22 +156,55 @@ function toggleSelect(id: number) {
     else selected.value.add(id);
 }
 
-async function destroySelected() {
-    for (const id of selected.value) {
-        await apiFetch(multimedia.destroy(id).url, { method: 'DELETE' });
-    }
-    items.value = items.value.filter((m) => !selected.value.has(m.id));
-    selected.value = new Set();
+interface MediaUsage {
+    type: string;
+    label: string;
+    href: string;
 }
 
-async function destroyOne(id: number) {
-    const response = await apiFetch(multimedia.destroy(id).url, {
-        method: 'DELETE',
-    });
-    if (response.ok) {
-        items.value = items.value.filter((m) => m.id !== id);
-        if (activeItem.value?.id === id) activeItem.value = null;
+const deleteTargetIds = ref<number[]>([]);
+const deleteUsages = ref<MediaUsage[] | null>(null);
+const deleteConfirmOpen = ref(false);
+const deleteChecking = ref(false);
+
+async function finishDelete(ids: number[], force: boolean) {
+    for (const id of ids) {
+        await apiFetch(multimedia.destroy(id).url, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force }),
+        });
     }
+    items.value = items.value.filter((m) => !ids.includes(m.id));
+    selected.value = new Set();
+    if (activeItem.value && ids.includes(activeItem.value.id)) activeItem.value = null;
+    deleteConfirmOpen.value = false;
+}
+
+async function requestDelete(ids: number[]) {
+    deleteChecking.value = true;
+    deleteTargetIds.value = ids;
+
+    const usages: MediaUsage[] = [];
+    for (const id of ids) {
+        const response = await apiFetch(multimedia.uso(id).url);
+        if (response.ok) {
+            const payload = await response.json();
+            usages.push(...payload.usages);
+        }
+    }
+
+    deleteUsages.value = usages;
+    deleteChecking.value = false;
+    deleteConfirmOpen.value = true;
+}
+
+function destroySelected() {
+    requestDelete(Array.from(selected.value));
+}
+
+function destroyOne(id: number) {
+    requestDelete([id]);
 }
 
 const altTextDraft = ref('');
@@ -503,4 +546,37 @@ async function saveAltText() {
             </div>
         </SheetContent>
     </Sheet>
+
+    <AlertDialog v-model:open="deleteConfirmOpen">
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>
+                    {{ deleteUsages && deleteUsages.length > 0 ? '¿Eliminar de todas formas?' : '¿Eliminar este archivo?' }}
+                </AlertDialogTitle>
+                <AlertDialogDescription as-child>
+                    <div>
+                        <p v-if="!deleteUsages || deleteUsages.length === 0">
+                            Esta acción no se puede deshacer.
+                        </p>
+                        <template v-else>
+                            <p class="mb-2">
+                                Este archivo está en uso. Si lo eliminas, estos contenidos quedarán sin imagen:
+                            </p>
+                            <ul class="flex flex-col gap-1 rounded-lg border p-2 text-sm">
+                                <li v-for="(u, i) in deleteUsages" :key="i">
+                                    <span class="font-medium">{{ u.type }}:</span> {{ u.label }}
+                                </li>
+                            </ul>
+                        </template>
+                    </div>
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction class="bg-destructive text-white hover:bg-destructive/90" @click="finishDelete(deleteTargetIds, true)">
+                    {{ deleteUsages && deleteUsages.length > 0 ? 'Eliminar de todas formas' : 'Eliminar' }}
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
 </template>

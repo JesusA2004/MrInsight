@@ -56,6 +56,33 @@ test('admin can add, hide and remove a proceso entry', function () {
     expect(PageEntry::query()->find($entry->id))->toBeNull();
 });
 
+test('admin can edit the rich content of an existing proceso entry', function () {
+    $page = Page::query()->create(['key' => 'mi-proceso', 'title' => 'Mi proceso']);
+    $entry = $page->entries()->create(['title' => 'Día 1', 'is_visible' => true, 'order' => 0]);
+    $admin = User::factory()->create(['role' => UserRole::Admin]);
+
+    $body = ['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Así empezó todo.']]]]];
+
+    $this->actingAs($admin)->put("/admin/paginas-entradas/{$entry->id}", [
+        'title' => $entry->title,
+        'body' => $body,
+        'is_visible' => true,
+    ])->assertRedirect();
+
+    expect($entry->refresh()->body)->toBe($body);
+});
+
+test('mi proceso page exposes entry body content publicly', function () {
+    $page = Page::query()->create(['key' => 'mi-proceso', 'title' => 'Mi proceso']);
+    $body = ['type' => 'doc', 'content' => [['type' => 'paragraph', 'content' => [['type' => 'text', 'text' => 'Contenido real.']]]]];
+    $page->entries()->create(['title' => 'Con contenido', 'is_visible' => true, 'order' => 0, 'body' => $body]);
+
+    $this->get('/mi-proceso')->assertInertia(fn ($p) => $p
+        ->component('public/MiProceso')
+        ->where('entries.0.body', $body)
+    );
+});
+
 test('mi proceso page shows only visible entries publicly', function () {
     $page = Page::query()->create(['key' => 'mi-proceso', 'title' => 'Mi proceso']);
     $page->entries()->create(['title' => 'Visible', 'is_visible' => true, 'order' => 0]);

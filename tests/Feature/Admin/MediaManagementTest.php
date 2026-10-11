@@ -100,10 +100,10 @@ test('chunked upload assembles a file across multiple requests', function () {
     $start->assertCreated();
     $uuid = $start->json('uuid');
 
-    foreach (str_split($content, $chunkSize) as $chunk) {
+    foreach (str_split($content, $chunkSize) as $index => $chunk) {
         $file = UploadedFile::fake()->createWithContent('chunk.part', $chunk);
         $this->actingAs($user)
-            ->post("/admin/multimedia-sesiones/{$uuid}/fragmentos", ['chunk' => $file])
+            ->post("/admin/multimedia-sesiones/{$uuid}/fragmentos", ['chunk' => $file, 'chunkIndex' => $index])
             ->assertOk();
     }
 
@@ -113,6 +113,65 @@ test('chunked upload assembles a file across multiple requests', function () {
     $media = Media::query()->where('original_filename', 'video-grande.mp4')->first();
     expect($media)->not->toBeNull();
     expect($media->size)->toBe(strlen($content));
+});
+
+test('a chunk sent twice is applied only once', function () {
+    $user = mediaAdmin();
+    $content = str_repeat('b', 200_000);
+    $chunkSize = 100_000;
+
+    $start = $this->actingAs($user)->postJson('/admin/multimedia-sesiones', [
+        'filename' => 'resumible.mp4',
+        'mimeType' => 'video/mp4',
+        'totalSize' => strlen($content),
+        'collection' => 'mr-insight/general',
+    ]);
+    $uuid = $start->json('uuid');
+
+    $chunks = str_split($content, $chunkSize);
+    $firstChunk = UploadedFile::fake()->createWithContent('chunk.part', $chunks[0]);
+
+    $this->actingAs($user)->post("/admin/multimedia-sesiones/{$uuid}/fragmentos", ['chunk' => $firstChunk, 'chunkIndex' => 0])->assertOk();
+
+    // Reintento de red: mismo fragmento, mismo índice.
+    $retry = UploadedFile::fake()->createWithContent('chunk.part', $chunks[0]);
+    $response = $this->actingAs($user)->post("/admin/multimedia-sesiones/{$uuid}/fragmentos", ['chunk' => $retry, 'chunkIndex' => 0])->assertOk();
+
+    expect($response->json('receivedSize'))->toBe(strlen($chunks[0]));
+});
+
+test('a chunk sent out of order is rejected', function () {
+    $user = mediaAdmin();
+
+    $start = $this->actingAs($user)->postJson('/admin/multimedia-sesiones', [
+        'filename' => 'fuera-de-orden.mp4',
+        'mimeType' => 'video/mp4',
+        'totalSize' => 200_000,
+        'collection' => 'mr-insight/general',
+    ]);
+    $uuid = $start->json('uuid');
+
+    $chunk = UploadedFile::fake()->createWithContent('chunk.part', str_repeat('c', 50_000));
+    $this->actingAs($user)
+        ->post("/admin/multimedia-sesiones/{$uuid}/fragmentos", ['chunk' => $chunk, 'chunkIndex' => 5])
+        ->assertStatus(409);
+});
+
+test('completing an upload before all bytes arrive fails', function () {
+    $user = mediaAdmin();
+
+    $start = $this->actingAs($user)->postJson('/admin/multimedia-sesiones', [
+        'filename' => 'incompleto.mp4',
+        'mimeType' => 'video/mp4',
+        'totalSize' => 200_000,
+        'collection' => 'mr-insight/general',
+    ]);
+    $uuid = $start->json('uuid');
+
+    $chunk = UploadedFile::fake()->createWithContent('chunk.part', str_repeat('d', 100_000));
+    $this->actingAs($user)->post("/admin/multimedia-sesiones/{$uuid}/fragmentos", ['chunk' => $chunk, 'chunkIndex' => 0])->assertOk();
+
+    $this->actingAs($user)->post("/admin/multimedia-sesiones/{$uuid}/completar")->assertStatus(422);
 });
 
 test('media alt text can be updated and the file can be deleted', function () {

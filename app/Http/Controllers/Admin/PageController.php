@@ -63,6 +63,7 @@ class PageController extends Controller
                 'id' => $entry->id,
                 'title' => $entry->title,
                 'entry_date' => $entry->entry_date?->toDateString(),
+                'body' => $entry->body,
                 'is_visible' => $entry->is_visible,
                 'order' => $entry->order,
                 'cover' => $entry->cover ? ['id' => $entry->cover->id, 'url' => $entry->cover->url()] : null,
