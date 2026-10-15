@@ -6,6 +6,7 @@ use App\Models\Category;
 use App\Models\Post;
 use App\Models\PostRevision;
 use App\Models\User;
+use App\Services\PostService;
 
 function postAdmin(): User
 {
@@ -131,4 +132,15 @@ test('only admin can delete a post', function () {
 
     $this->actingAs(postAdmin())->delete("/admin/publicaciones/{$post->id}")->assertRedirect('/admin/publicaciones');
     expect(Post::query()->find($post->id))->toBeNull();
+});
+
+test('updating a post without related posts in the payload keeps the existing ones', function () {
+    $admin = User::factory()->create(['role' => UserRole::Admin]);
+    $category = Category::factory()->create();
+    $other = Post::factory()->for($category)->create();
+    $post = Post::factory()->for($category)->create(['related_post_ids' => [$other->id]]);
+
+    app(PostService::class)->update($post, ['category_id' => $category->id, 'title' => 'Nuevo título']);
+
+    expect($post->refresh()->related_post_ids)->toBe([$other->id]);
 });

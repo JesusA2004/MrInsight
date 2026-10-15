@@ -1,11 +1,17 @@
 @import 'tailwindcss';
 
 @import 'tw-animate-css';
+@import './blocks.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 
 @custom-variant dark (&:is(.dark *));
+
+/* ====================================================================== */
+/* MR. INSIGHT — Design system                                             */
+/* Ver docs/design/DIRECCION-VISUAL.md y la skill mrinsight-visual-design. */
+/* ====================================================================== */
 
 @theme inline {
     --font-sans:
@@ -14,48 +20,51 @@
         'Noto Color Emoji';
     --font-display: Fraunces, ui-serif, Georgia, 'Times New Roman', serif;
 
-    /* Identidad editorial MR. INSIGHT — usada en el sitio público */
+    /* Identidad editorial (sitio público). Reescritos en runtime por la
+       apariencia publicada (PublicLayout.vue) — estos son los defaults. */
     --color-ink: #0d0e10;
     --color-ink-soft: #16181b;
-    --color-paper: #f4f1ea;
+    --color-ink-raised: #1d2024;
+    --color-paper: #f4f1eb;
     --color-gold: #c7aa7d;
     --color-gold-soft: #d9c4a1;
     --color-mist: #aba9a3;
+    --color-line: color-mix(in srgb, var(--color-paper) 10%, transparent);
 
-    /* Sobrescritos en tiempo de ejecución por /admin/apariencia (ver
-       PublicLayout.vue) — estos son solo los valores por defecto. */
     --editorial-radius-button: 0.375rem;
     --editorial-radius-card: 0.75rem;
     --editorial-radius-card-lg: 1rem;
 
+    --ease-editorial: cubic-bezier(0.2, 0.7, 0.2, 1);
+
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
+    --radius-xl: calc(var(--radius) + 4px);
 
     --color-background: var(--background);
     --color-foreground: var(--foreground);
-
     --color-card: var(--card);
     --color-card-foreground: var(--card-foreground);
-
     --color-popover: var(--popover);
     --color-popover-foreground: var(--popover-foreground);
-
     --color-primary: var(--primary);
     --color-primary-foreground: var(--primary-foreground);
-
     --color-secondary: var(--secondary);
     --color-secondary-foreground: var(--secondary-foreground);
-
     --color-muted: var(--muted);
     --color-muted-foreground: var(--muted-foreground);
-
     --color-accent: var(--accent);
     --color-accent-foreground: var(--accent-foreground);
-
     --color-destructive: var(--destructive);
     --color-destructive-foreground: var(--destructive-foreground);
-
+    --color-success: var(--success);
+    --color-success-foreground: var(--success-foreground);
+    --color-warning: var(--warning);
+    --color-warning-foreground: var(--warning-foreground);
+    --color-brand: var(--brand);
+    --color-brand-foreground: var(--brand-foreground);
+    --color-surface-raised: var(--surface-raised);
     --color-border: var(--border);
     --color-input: var(--input);
     --color-ring: var(--ring);
@@ -76,24 +85,6 @@
     --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/*
-  The default border color has changed to `currentColor` in Tailwind CSS v4,
-  so we've added these compatibility styles to make sure everything still
-  looks the same as it did with Tailwind CSS v3.
-
-  If we ever want to remove these styles, we need to add an explicit border
-  color utility to any element that depends on these defaults.
-*/
-@layer base {
-    *,
-    ::after,
-    ::before,
-    ::backdrop,
-    ::file-selector-button {
-        border-color: var(--color-gray-200, currentColor);
-    }
-}
-
 @layer utilities {
     body,
     html {
@@ -104,77 +95,92 @@
     }
 }
 
+/* Admin — "sala de redacción": marfil cálido, tinta y oro. */
 :root {
-    --background: hsl(0 0% 100%);
-    --foreground: hsl(0 0% 3.9%);
-    --card: hsl(0 0% 100%);
-    --card-foreground: hsl(0 0% 3.9%);
-    --popover: hsl(0 0% 100%);
-    --popover-foreground: hsl(0 0% 3.9%);
-    --primary: hsl(0 0% 9%);
-    --primary-foreground: hsl(0 0% 98%);
-    --secondary: hsl(0 0% 92.1%);
-    --secondary-foreground: hsl(0 0% 9%);
-    --muted: hsl(0 0% 96.1%);
-    --muted-foreground: hsl(0 0% 45.1%);
-    --accent: hsl(0 0% 96.1%);
-    --accent-foreground: hsl(0 0% 9%);
-    --destructive: hsl(0 84.2% 60.2%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 92.8%);
-    --input: hsl(0 0% 89.8%);
-    --ring: hsl(0 0% 3.9%);
-    --chart-1: hsl(12 76% 61%);
-    --chart-2: hsl(173 58% 39%);
-    --chart-3: hsl(197 37% 24%);
-    --chart-4: hsl(43 74% 66%);
-    --chart-5: hsl(27 87% 67%);
-    --radius: 0.5rem;
-    --sidebar-background: hsl(0 0% 98%);
-    --sidebar-foreground: hsl(240 5.3% 26.1%);
-    --sidebar-primary: hsl(0 0% 10%);
-    --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(0 0% 94%);
-    --sidebar-accent-foreground: hsl(0 0% 30%);
-    --sidebar-border: hsl(0 0% 91%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(0 0% 98%);
+    --background: #f7f5f0;
+    --foreground: #0d0e10;
+    --card: #ffffff;
+    --card-foreground: #0d0e10;
+    --popover: #ffffff;
+    --popover-foreground: #0d0e10;
+    --primary: #0d0e10;
+    --primary-foreground: #f4f1eb;
+    --secondary: #efebe3;
+    --secondary-foreground: #1d2024;
+    --muted: #efebe3;
+    --muted-foreground: #6b6862;
+    --accent: #f1ebdf;
+    --accent-foreground: #0d0e10;
+    --brand: #c7aa7d;
+    --brand-foreground: #0d0e10;
+    --surface-raised: #fbfaf7;
+    --destructive: #c2410c;
+    --destructive-foreground: #ffffff;
+    --success: #3f7d58;
+    --success-foreground: #ffffff;
+    --warning: #b7791f;
+    --warning-foreground: #ffffff;
+    --border: #e7e2d8;
+    --input: #ddd7cb;
+    --ring: #c7aa7d;
+    --chart-1: #8a6d3f;
+    --chart-2: #0d0e10;
+    --chart-3: #8a7a5f;
+    --chart-4: #aba9a3;
+    --chart-5: #3f7d58;
+    --radius: 0.625rem;
+    --sidebar-background: #f1eee7;
+    --sidebar-foreground: #2a2c30;
+    --sidebar-primary: #0d0e10;
+    --sidebar-primary-foreground: #f4f1eb;
+    --sidebar-accent: #e7e1d4;
+    --sidebar-accent-foreground: #0d0e10;
+    --sidebar-border: #e2dccf;
+    --sidebar-ring: #c7aa7d;
+    --sidebar: #f1eee7;
 }
 
 .dark {
-    --background: hsl(0 0% 3.9%);
-    --foreground: hsl(0 0% 98%);
-    --card: hsl(0 0% 3.9%);
-    --card-foreground: hsl(0 0% 98%);
-    --popover: hsl(0 0% 3.9%);
-    --popover-foreground: hsl(0 0% 98%);
-    --primary: hsl(0 0% 98%);
-    --primary-foreground: hsl(0 0% 9%);
-    --secondary: hsl(0 0% 14.9%);
-    --secondary-foreground: hsl(0 0% 98%);
-    --muted: hsl(0 0% 16.08%);
-    --muted-foreground: hsl(0 0% 63.9%);
-    --accent: hsl(0 0% 14.9%);
-    --accent-foreground: hsl(0 0% 98%);
-    --destructive: hsl(0 84% 60%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --border: hsl(0 0% 14.9%);
-    --input: hsl(0 0% 14.9%);
-    --ring: hsl(0 0% 83.1%);
-    --chart-1: hsl(220 70% 50%);
-    --chart-2: hsl(160 60% 45%);
-    --chart-3: hsl(30 80% 55%);
-    --chart-4: hsl(280 65% 60%);
-    --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(0 0% 7%);
-    --sidebar-foreground: hsl(0 0% 95.9%);
-    --sidebar-primary: hsl(360, 100%, 100%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(0 0% 15.9%);
-    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-border: hsl(0 0% 15.9%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
-    --sidebar: hsl(240 5.9% 10%);
+    --background: #0d0e10;
+    --foreground: #f4f1eb;
+    --card: #16181b;
+    --card-foreground: #f4f1eb;
+    --popover: #16181b;
+    --popover-foreground: #f4f1eb;
+    --primary: #f4f1eb;
+    --primary-foreground: #0d0e10;
+    --secondary: #1d2024;
+    --secondary-foreground: #f4f1eb;
+    --muted: #1d2024;
+    --muted-foreground: #a3a09a;
+    --accent: #23262b;
+    --accent-foreground: #f4f1eb;
+    --brand: #c7aa7d;
+    --brand-foreground: #0d0e10;
+    --surface-raised: #1a1c20;
+    --destructive: #ea580c;
+    --destructive-foreground: #ffffff;
+    --success: #5fae80;
+    --success-foreground: #0d0e10;
+    --warning: #e0a43a;
+    --warning-foreground: #0d0e10;
+    --border: #26292e;
+    --input: #2e3238;
+    --ring: #c7aa7d;
+    --chart-1: #c7aa7d;
+    --chart-2: #f4f1eb;
+    --chart-3: #8a7a5f;
+    --chart-4: #6b6862;
+    --chart-5: #5fae80;
+    --sidebar-background: #111214;
+    --sidebar-foreground: #e8e4dc;
+    --sidebar-primary: #f4f1eb;
+    --sidebar-primary-foreground: #0d0e10;
+    --sidebar-accent: #1d2024;
+    --sidebar-accent-foreground: #f4f1eb;
+    --sidebar-border: #1f2226;
+    --sidebar-ring: #c7aa7d;
+    --sidebar: #111214;
 }
 
 @layer base {
@@ -184,18 +190,81 @@
     body {
         @apply bg-background text-foreground;
     }
+    :focus-visible {
+        outline: 2px solid var(--color-ring);
+        outline-offset: 2px;
+    }
 }
 
 /* ---------------------------------------------------------------------- */
-/* Identidad editorial MR. INSIGHT (sitio público)                        */
+/* Sitio público — contenedores y escala tipográfica fluida               */
 /* ---------------------------------------------------------------------- */
-@layer utilities {
+@layer components {
     .container-editorial {
-        max-width: 1200px;
+        width: 100%;
+        max-width: 1240px;
         margin-inline: auto;
-        padding-inline: 20px;
+        padding-inline: clamp(20px, 4vw, 40px);
+    }
+    .container-editorial--narrow {
+        max-width: 760px;
+    }
+    .container-editorial--wide {
+        max-width: 1440px;
+    }
+    .container-editorial--full {
+        max-width: none;
     }
 
+    .type-display-xl {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: clamp(2.75rem, 1.6rem + 4.9vw, 6rem);
+        line-height: 0.98;
+        letter-spacing: -0.02em;
+    }
+    .type-display-lg {
+        font-family: var(--font-display);
+        font-weight: 600;
+        font-size: clamp(2.375rem, 1.6rem + 3.3vw, 4.5rem);
+        line-height: 1.02;
+        letter-spacing: -0.015em;
+    }
+    .type-display-md {
+        font-family: var(--font-display);
+        font-weight: 500;
+        font-size: clamp(1.875rem, 1.5rem + 1.6vw, 3rem);
+        line-height: 1.08;
+        letter-spacing: -0.01em;
+    }
+    .type-title {
+        font-family: var(--font-display);
+        font-weight: 500;
+        font-size: clamp(1.375rem, 1.25rem + 0.5vw, 1.75rem);
+        line-height: 1.2;
+    }
+    .type-lead {
+        font-size: clamp(1.125rem, 1.05rem + 0.35vw, 1.375rem);
+        line-height: 1.5;
+    }
+    .type-body {
+        font-size: clamp(1rem, 0.96rem + 0.18vw, 1.125rem);
+        line-height: 1.65;
+    }
+    .type-eyebrow {
+        font-size: clamp(0.6875rem, 0.66rem + 0.1vw, 0.75rem);
+        font-weight: 600;
+        letter-spacing: 0.24em;
+        text-transform: uppercase;
+        line-height: 1.2;
+    }
+    .type-caption {
+        font-size: clamp(0.75rem, 0.73rem + 0.08vw, 0.8125rem);
+        letter-spacing: 0.02em;
+        line-height: 1.4;
+    }
+
+    /* Compatibilidad con vistas existentes */
     .text-headline {
         font-family: var(--font-display);
         font-weight: 600;
@@ -203,11 +272,128 @@
         line-height: 1.04;
         letter-spacing: -0.01em;
     }
-
     .text-editorial-body {
         font-size: clamp(1rem, 0.94rem + 0.2vw, 1.25rem);
         line-height: 1.5;
     }
+
+    /* Botones editoriales (sitio público) */
+    .btn-editorial {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        min-height: 3.125rem;
+        padding-inline: 1.5rem;
+        border-radius: var(--editorial-radius-button);
+        font-size: 0.875rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        transition:
+            background-color 200ms var(--ease-editorial),
+            color 200ms var(--ease-editorial),
+            border-color 200ms var(--ease-editorial),
+            transform 200ms var(--ease-editorial);
+    }
+    .btn-editorial:active {
+        transform: translateY(1px);
+    }
+    .btn-editorial--primary {
+        background: var(--color-gold);
+        color: var(--color-ink);
+    }
+    .btn-editorial--primary:hover {
+        background: var(--color-gold-soft);
+    }
+    .btn-editorial--secondary {
+        border: 1px solid color-mix(in srgb, var(--color-paper) 28%, transparent);
+        color: var(--color-paper);
+    }
+    .btn-editorial--secondary:hover {
+        border-color: var(--color-gold);
+        color: var(--color-gold);
+    }
+    .btn-editorial--link {
+        min-height: 2.75rem;
+        padding-inline: 0;
+        color: var(--color-paper);
+        text-decoration: underline;
+        text-decoration-color: var(--color-gold);
+        text-underline-offset: 0.35em;
+        text-decoration-thickness: 1px;
+    }
+    .btn-editorial--link:hover {
+        color: var(--color-gold);
+    }
+
+    .link-underline {
+        background-image: linear-gradient(currentColor, currentColor);
+        background-size: 0% 1px;
+        background-position: 0 100%;
+        background-repeat: no-repeat;
+        transition: background-size 350ms var(--ease-editorial);
+    }
+    .link-underline:hover,
+    .group:hover .link-underline {
+        background-size: 100% 1px;
+    }
+
+    .hover-lift {
+        transition: transform 350ms var(--ease-editorial);
+    }
+    .hover-lift:hover {
+        transform: translateY(-4px);
+    }
+
+    .img-zoom img,
+    .img-zoom video {
+        transition: transform 900ms var(--ease-editorial);
+    }
+    .img-zoom:hover img,
+    .group:hover .img-zoom img {
+        transform: scale(1.04);
+    }
+
+    .grain::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0.05;
+        background-image: radial-gradient(
+            rgb(255 255 255 / 0.6) 0.5px,
+            transparent 0.5px
+        );
+        background-size: 3px 3px;
+    }
+
+    .scrollbar-none {
+        scrollbar-width: none;
+    }
+    .scrollbar-none::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+/* ---------------------------------------------------------------------- */
+/* Movimiento — v-reveal (resources/js/lib/reveal.ts)                      */
+/* El estado oculto solo aplica cuando JS marcó html.js-motion.           */
+/* ---------------------------------------------------------------------- */
+.js-motion [data-reveal]:not([data-revealed]) {
+    opacity: 0;
+    transform: var(--reveal-from, none);
+}
+/* El recorte se aplica a los hijos: un elemento recortado al 100 % no
+   genera intersección y el observador nunca lo revelaría. */
+.js-motion [data-reveal-clip]:not([data-revealed]) > * {
+    clip-path: var(--reveal-clip, none);
+}
+[data-reveal],
+[data-reveal-clip] > * {
+    transition-property: opacity, transform, clip-path;
+    transition-duration: var(--reveal-duration, 700ms);
+    transition-delay: var(--reveal-delay, 0ms);
+    transition-timing-function: var(--ease-editorial);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -218,5 +404,11 @@
         animation-iteration-count: 1 !important;
         transition-duration: 0.01ms !important;
         scroll-behavior: auto !important;
+    }
+    .js-motion [data-reveal]:not([data-revealed]),
+    .js-motion [data-reveal-clip]:not([data-revealed]) > * {
+        opacity: 1;
+        transform: none;
+        clip-path: none;
     }
 }

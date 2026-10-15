@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\ActivityController;
 use App\Http\Controllers\Admin\AppearanceController;
+use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\HomeSettingsController;
@@ -12,11 +13,30 @@ use App\Http\Controllers\Admin\PageEntryController;
 use App\Http\Controllers\Admin\PostController;
 use App\Http\Controllers\Admin\SocialLinkController;
 use App\Http\Controllers\Admin\StorageController;
+use App\Http\Controllers\Admin\StudioController;
 use App\Http\Controllers\Admin\UploadSessionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/', DashboardController::class)->name('dashboard');
+
+    // MR. INSIGHT Studio — constructor visual
+    Route::get('studio', [StudioController::class, 'index'])->name('studio.index');
+    Route::post('studio', [StudioController::class, 'store'])->name('studio.store');
+    Route::get('studio/{page}', [StudioController::class, 'edit'])->name('studio.edit');
+    Route::delete('studio/{page}', [StudioController::class, 'destroy'])->name('studio.destroy');
+    Route::get('studio/{page}/canvas', [StudioController::class, 'canvas'])->name('studio.canvas');
+    Route::get('studio/{page}/vista-previa', [StudioController::class, 'preview'])->name('studio.preview');
+    Route::put('studio/{page}/borrador', [StudioController::class, 'saveDraft'])->name('studio.borrador');
+    Route::post('studio/{page}/resolver', [StudioController::class, 'resolve'])->name('studio.resolver');
+    Route::post('studio/{page}/publicar', [StudioController::class, 'publish'])->name('studio.publicar');
+    Route::post('studio/{page}/descartar', [StudioController::class, 'discard'])->name('studio.descartar');
+    Route::post('studio/{page}/compartir', [StudioController::class, 'share'])->name('studio.compartir');
+    Route::put('studio/{page}/ajustes', [StudioController::class, 'updateSettings'])->name('studio.ajustes');
+    Route::get('studio/{page}/versiones/{version}', [StudioController::class, 'version'])->name('studio.version');
+    Route::post('studio/{page}/versiones/{version}/restaurar', [StudioController::class, 'restore'])->name('studio.restaurar');
+
+    Route::get('calendario', CalendarController::class)->name('calendario');
 
     Route::get('multimedia/buscar', [MediaController::class, 'search'])->name('multimedia.buscar');
     Route::get('multimedia/{media}/uso', [MediaController::class, 'usage'])->name('multimedia.uso');

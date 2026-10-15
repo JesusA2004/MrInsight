@@ -11,6 +11,7 @@ use App\Models\Post;
 use App\Models\SiteSetting;
 use App\Services\ActivityLogger;
 use App\Services\PostPresenter;
+use App\Studio\StudioService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -19,7 +20,7 @@ use Inertia\Response;
 
 class HomeSettingsController extends Controller
 {
-    public function edit(PostPresenter $presenter): Response
+    public function edit(PostPresenter $presenter, StudioService $studio): Response
     {
         abort_unless(request()->user()?->canManagePosts(), 403);
 
@@ -71,6 +72,8 @@ class HomeSettingsController extends Controller
             'footer' => SiteSetting::get('footer', ['tagline' => '']),
             'sections' => HomepageSection::query()->orderBy('order')->get(['section_key', 'is_visible', 'order']),
             'empiezaAquiPreview' => $preview,
+            // La composición y los textos del inicio se editan en Studio.
+            'studioPageId' => $studio->ensureSystemPage('home')->id,
         ]);
     }
 

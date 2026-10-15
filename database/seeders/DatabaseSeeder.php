@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
             PageSeeder::class,
             StorageProviderSeeder::class,
             MediaCollectionSeeder::class,
+            StudioPageSeeder::class,
         ]);
     }
 }

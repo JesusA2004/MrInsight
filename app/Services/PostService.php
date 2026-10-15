@@ -54,7 +54,7 @@ class PostService
             'seo_title' => $data['seo_title'] ?? null,
             'seo_description' => $data['seo_description'] ?? null,
             'tags' => $data['tags'] ?? null,
-            'related_post_ids' => $data['related_post_ids'] ?? null,
+            'related_post_ids' => array_key_exists('related_post_ids', $data) ? $data['related_post_ids'] : $post->related_post_ids,
         ]);
 
         $this->syncMedia($post, $data);

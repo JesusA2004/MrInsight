@@ -6,17 +6,29 @@ use App\Http\Controllers\Controller;
 use App\Models\Page;
 use App\Models\PageEntry;
 use App\Services\PublicSiteDataService;
+use App\Studio\StudioPagePresenter;
 use Inertia\Inertia;
 use Inertia\Response;
 
+/**
+ * Páginas institucionales. Mi historia y Mi proceso se componen en Studio;
+ * su texto, portada y entradas siguen administrándose en /admin/paginas y
+ * Studio los muestra por referencia.
+ */
 class PageController extends Controller
 {
-    public function historia(PublicSiteDataService $siteData): Response
+    public function historia(PublicSiteDataService $siteData, StudioPagePresenter $studio): Response
     {
-        return $this->renderPage('mi-historia', 'public/MiHistoria', $siteData);
+        $page = Page::query()->where('key', 'mi-historia')->firstOrFail();
+
+        return Inertia::render('public/MiHistoria', [
+            ...$siteData->base(),
+            'page' => $this->pageData($page),
+            'studio' => $studio->published('mi-historia'),
+        ]);
     }
 
-    public function proceso(PublicSiteDataService $siteData): Response
+    public function proceso(PublicSiteDataService $siteData, StudioPagePresenter $studio): Response
     {
         $page = Page::query()->where('key', 'mi-proceso')->firstOrFail();
         $entries = $page->entries()->where('is_visible', true)->with('cover')->get();
@@ -31,21 +43,20 @@ class PageController extends Controller
                 'coverUrl' => $entry->cover?->url(),
                 'body' => $entry->body,
             ]),
+            'studio' => $studio->published('mi-proceso'),
         ]);
     }
 
     public function privacidad(PublicSiteDataService $siteData): Response
     {
-        return $this->renderPage('aviso-privacidad', 'public/AvisoPrivacidad', $siteData);
-    }
+        $page = Page::query()->where('key', 'aviso-privacidad')->firstOrFail();
 
-    private function renderPage(string $key, string $component, PublicSiteDataService $siteData): Response
-    {
-        $page = Page::query()->where('key', $key)->firstOrFail();
-
-        return Inertia::render($component, [
+        return Inertia::render('public/AvisoPrivacidad', [
             ...$siteData->base(),
-            'page' => $this->pageData($page),
+            'page' => [
+                ...$this->pageData($page),
+                'updatedAt' => $page->updated_at?->toIso8601String(),
+            ],
         ]);
     }
 

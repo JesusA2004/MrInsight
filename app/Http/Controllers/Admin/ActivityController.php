@@ -20,7 +20,14 @@ class ActivityController extends Controller
     /**
      * @var array<string, string>
      */
-    private const ACTION_LABELS = [
+    public const ACTION_LABELS = [
+        'studio.pagina_creada' => 'Página de Studio creada',
+        'studio.pagina_eliminada' => 'Página de Studio eliminada',
+        'studio.publicada' => 'Página publicada desde Studio',
+        'studio.version_restaurada' => 'Versión restaurada en Studio',
+        'studio.borrador_descartado' => 'Borrador de Studio descartado',
+        'studio.vista_previa_compartida' => 'Vista previa compartida',
+        'studio.ajustes_actualizados' => 'Ajustes de página actualizados',
         'publicacion.creada' => 'Publicación creada',
         'publicacion.actualizada' => 'Publicación actualizada',
         'publicacion.eliminada' => 'Publicación eliminada',
@@ -57,7 +64,8 @@ class ActivityController extends Controller
     /**
      * @var array<string, string>
      */
-    private const SUBJECT_LABELS = [
+    public const SUBJECT_LABELS = [
+        'App\Models\StudioPage' => 'Página de Studio',
         'App\\Models\\Post' => 'Publicación',
         'App\\Models\\Category' => 'Categoría',
         'App\\Models\\Media' => 'Archivo',

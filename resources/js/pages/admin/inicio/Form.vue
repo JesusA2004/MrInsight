@@ -1,22 +1,16 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
-import { ImagePlus, Repeat } from '@lucide/vue';
+import { Head, Link, router, useForm } from '@inertiajs/vue3';
+import { ArrowRight, Check, Loader2, PenTool, Repeat, Star } from '@lucide/vue';
 import { ref } from 'vue';
-import { VueDraggable } from 'vue-draggable-plus';
-import MediaPickerDialog, { type PickedMedia } from '@/components/admin/MediaPickerDialog.vue';
-import { Badge } from '@/components/ui/badge';
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue';
+import FormSection from '@/components/admin/FormSection.vue';
+import InputError from '@/components/InputError.vue';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-} from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import inicio from '@/routes/admin/inicio';
+import studio from '@/routes/admin/studio';
 import type { BreadcrumbItem, PostSummary } from '@/types';
 
 interface SectionRow {
@@ -52,6 +46,7 @@ const props = defineProps<{
     footer: { tagline: string };
     sections: SectionRow[];
     empiezaAquiPreview: CategoryPreview[];
+    studioPageId: number;
 }>();
 
 defineOptions({
@@ -63,15 +58,12 @@ defineOptions({
     },
 });
 
-const sectionLabels: Record<string, string> = {
-    hero: 'Portada',
-    empieza_aqui: 'Empieza aquí',
-    tips: 'Explora los tips',
-    mi_historia: 'Mi historia',
-    mi_proceso: 'Mi proceso',
-    footer: 'Pie de página',
-};
-
+/*
+ * Los ajustes históricos (hero, títulos de secciones) se conservan tal cual
+ * para no perder información, pero la composición visible del inicio ya se
+ * define en Studio. Aquí solo se edita lo que sigue vigente: el pie y los
+ * tips destacados por categoría (que alimentan el bloque «Empieza aquí»).
+ */
 const form = useForm({
     hero: { ...props.hero, photo_media_id: props.hero.photo?.id ?? null },
     empieza_aqui: { ...props.empiezaAqui },
@@ -82,41 +74,14 @@ const form = useForm({
     sections: props.sections.map((s) => ({ ...s })),
 });
 
-const heroPhotoUrl = ref(props.hero.photo?.url ?? null);
-const historiaPhotoUrl = ref(props.historiaPreview.photo?.url ?? null);
-const heroPickerOpen = ref(false);
-const historiaPickerOpen = ref(false);
-
-function onHeroPhoto(media: PickedMedia) {
-    form.hero.photo_media_id = media.id;
-    heroPhotoUrl.value = media.url;
-}
-
-function onHistoriaPhoto(media: PickedMedia) {
-    form.historia_preview.photo_media_id = media.id;
-    historiaPhotoUrl.value = media.url;
-}
-
-function updateTitleLine(index: number, value: string) {
-    form.hero.title_lines[index] = value;
-}
-
 function save() {
-    form.put(inicio.update().url);
+    form.put(inicio.update().url, { preserveScroll: true });
 }
 
-function onSectionsReordered() {
-    form.sections.forEach((section, index) => {
-        section.order = index;
-    });
-}
-
-// --- Selector de publicación destacada por categoría ---
 const featuredPickerCategory = ref<CategoryPreview | null>(null);
 
 function chooseFeatured(post: FeaturedCandidate) {
     if (!featuredPickerCategory.value) return;
-
     router.post(
         inicio.destacados().url,
         { category_id: featuredPickerCategory.value.category_id, post_id: post.id },
@@ -128,200 +93,107 @@ function chooseFeatured(post: FeaturedCandidate) {
 <template>
     <Head title="Inicio" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4 md:max-w-3xl md:p-6">
-        <h1 class="text-xl font-semibold">Editar inicio</h1>
+    <div class="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
+        <AdminPageHeader
+            eyebrow="Sitio web"
+            title="Inicio"
+            description="La portada del sitio se diseña en Studio. Aquí eliges qué tip representa a cada categoría y el texto del pie de página."
+        >
+            <template #actions>
+                <Button as-child>
+                    <Link :href="studio.edit(studioPageId)"><PenTool class="size-4" /> Diseñar el inicio en Studio</Link>
+                </Button>
+            </template>
+        </AdminPageHeader>
 
-        <Card>
-            <CardHeader><CardTitle>Portada (hero)</CardTitle></CardHeader>
-            <CardContent class="grid gap-4">
-                <div class="grid gap-2">
-                    <Label>Etiqueta superior</Label>
-                    <Input v-model="form.hero.eyebrow" placeholder="SIN TAPUJOS." />
+        <Link
+            :href="studio.edit(studioPageId)"
+            class="group relative overflow-hidden rounded-xl border bg-[#0d0e10] p-6 text-[#f4f1eb] transition-shadow hover:shadow-xl md:p-8"
+        >
+            <div class="absolute inset-0 bg-[radial-gradient(circle_at_85%_20%,rgb(199_170_125/0.35),transparent_55%)]" aria-hidden="true" />
+            <div class="relative flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div class="max-w-xl">
+                    <p class="text-[11px] font-semibold tracking-[0.2em] text-[#c7aa7d] uppercase">MR. INSIGHT Studio</p>
+                    <p class="mt-2 font-display text-2xl leading-tight md:text-3xl">Portada, fotografías, títulos, videos y orden de secciones</p>
+                    <p class="mt-2 text-sm text-[#aba9a3]">Edita sobre la página real, revisa en móvil y publica cuando esté lista. Cada publicación queda en el historial.</p>
                 </div>
-                <div class="grid gap-2">
-                    <Label>Líneas del titular</Label>
-                    <Input
-                        v-for="(line, i) in form.hero.title_lines"
-                        :key="i"
-                        :model-value="line"
-                        class="mb-1"
-                        @update:model-value="(v) => updateTitleLine(i, String(v))"
-                    />
-                </div>
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <div class="grid gap-2">
-                        <Label>Botón principal</Label>
-                        <Input v-model="form.hero.primary_cta_label" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label>Botón secundario</Label>
-                        <Input v-model="form.hero.secondary_cta_label" />
-                    </div>
-                    <div class="grid gap-2">
-                        <Label>Enlace terciario</Label>
-                        <Input v-model="form.hero.tertiary_link_label" />
-                    </div>
-                </div>
-                <div class="grid gap-2">
-                    <Label>Fotografía</Label>
-                    <button
-                        type="button"
-                        class="flex aspect-video w-full max-w-sm items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/40 hover:border-primary"
-                        @click="heroPickerOpen = true"
-                    >
-                        <img v-if="heroPhotoUrl" :src="heroPhotoUrl" alt="" class="size-full object-cover" />
-                        <span v-else class="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-                            <ImagePlus class="size-6" />
-                            Elegir fotografía
-                        </span>
-                    </button>
-                </div>
-            </CardContent>
-        </Card>
+                <span class="inline-flex shrink-0 items-center gap-2 self-start rounded-full bg-[#c7aa7d] px-4 py-2 text-sm font-semibold text-[#0d0e10] md:self-auto">
+                    Abrir Studio <ArrowRight class="size-4 transition-transform group-hover:translate-x-1" />
+                </span>
+            </div>
+        </Link>
 
-        <Card>
-            <CardHeader><CardTitle>Empieza aquí</CardTitle></CardHeader>
-            <CardContent class="grid gap-4">
-                <div class="grid gap-2">
-                    <Label>Título de la sección</Label>
-                    <Input v-model="form.empieza_aqui.title" />
-                </div>
-                <div class="grid gap-2">
-                    <Label class="text-muted-foreground">Publicación destacada por categoría</Label>
-                    <div class="flex flex-col gap-2">
-                        <div v-for="item in empiezaAquiPreview" :key="item.category_id" class="flex items-center gap-3 rounded-lg border p-2">
-                            <div class="size-10 shrink-0 overflow-hidden rounded bg-muted">
-                                <img v-if="item.post?.coverUrl" :src="item.post.coverUrl" class="size-full object-cover" alt="" />
-                            </div>
-                            <div class="min-w-0 flex-1">
-                                <p class="text-xs text-muted-foreground">{{ item.category }}</p>
-                                <p class="truncate text-sm font-medium">{{ item.post?.title ?? 'Sin publicaciones todavía' }}</p>
-                                <p v-if="item.post?.publishedAt" class="text-xs text-muted-foreground">
-                                    {{ new Date(item.post.publishedAt).toLocaleDateString('es-MX') }}
-                                </p>
-                            </div>
-                            <Badge v-if="item.post" variant="outline">Publicado</Badge>
+        <div class="rounded-xl border bg-card px-5 md:px-8">
+            <FormSection
+                title="Tip destacado por categoría"
+                description="Alimenta la sección «Empieza aquí»: una puerta de entrada por tema. Solo se pueden elegir tips publicados."
+            >
+                <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                    <article v-for="item in empiezaAquiPreview" :key="item.category_id" class="flex flex-col overflow-hidden rounded-lg border">
+                        <div class="aspect-[16/9] bg-muted">
+                            <img v-if="item.post?.coverUrl" :src="item.post.coverUrl" alt="" class="size-full object-cover" loading="lazy" />
+                        </div>
+                        <div class="flex flex-1 flex-col gap-2 p-4">
+                            <p class="text-[11px] font-semibold tracking-[0.14em] text-brand uppercase">{{ item.category }}</p>
+                            <p class="flex-1 text-sm font-medium">{{ item.post?.title ?? 'Sin tip publicado en esta categoría' }}</p>
                             <Button
-                                size="sm"
                                 variant="outline"
+                                size="sm"
+                                class="self-start"
                                 :disabled="item.candidates.length === 0"
                                 @click="featuredPickerCategory = item"
                             >
-                                <Repeat class="size-3.5" />
-                                Cambiar
+                                <Repeat class="size-4" /> Cambiar destacado
                             </Button>
                         </div>
-                    </div>
+                    </article>
                 </div>
-            </CardContent>
-        </Card>
+            </FormSection>
 
-        <Card>
-            <CardHeader><CardTitle>Explora los tips</CardTitle></CardHeader>
-            <CardContent class="grid grid-cols-2 gap-4">
-                <div class="grid gap-2">
-                    <Label>Título de la sección</Label>
-                    <Input v-model="form.tips_section.title" />
-                </div>
-                <div class="grid gap-2">
-                    <Label>Publicaciones a mostrar</Label>
-                    <Input v-model.number="form.tips_section.posts_per_page" type="number" min="3" max="24" />
-                </div>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader><CardTitle>Mi historia</CardTitle></CardHeader>
-            <CardContent class="grid gap-4">
-                <div class="grid gap-2">
-                    <Label>Título</Label>
-                    <Input v-model="form.historia_preview.title" />
-                </div>
-                <div class="grid gap-2">
-                    <Label>Fotografía</Label>
-                    <button
-                        type="button"
-                        class="flex aspect-video w-full max-w-sm items-center justify-center overflow-hidden rounded-lg border border-dashed bg-muted/40 hover:border-primary"
-                        @click="historiaPickerOpen = true"
-                    >
-                        <img v-if="historiaPhotoUrl" :src="historiaPhotoUrl" alt="" class="size-full object-cover" />
-                        <span v-else class="flex flex-col items-center gap-2 text-sm text-muted-foreground">
-                            <ImagePlus class="size-6" />
-                            Elegir fotografía
-                        </span>
-                    </button>
-                </div>
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader><CardTitle>Mi proceso</CardTitle></CardHeader>
-            <CardContent class="grid gap-2">
-                <Label>Título</Label>
-                <Input v-model="form.proceso_preview.title" />
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader><CardTitle>Pie de página</CardTitle></CardHeader>
-            <CardContent class="grid gap-2">
-                <Label>Frase editorial</Label>
-                <Input v-model="form.footer.tagline" />
-            </CardContent>
-        </Card>
-
-        <Card>
-            <CardHeader>
-                <CardTitle>Secciones visibles</CardTitle>
-                <p class="text-xs text-muted-foreground">Arrastra para cambiar el orden en que aparecen en el inicio.</p>
-            </CardHeader>
-            <CardContent class="p-0">
-                <VueDraggable v-model="form.sections" class="flex flex-col divide-y" handle=".drag-handle" @end="onSectionsReordered">
-                    <div v-for="section in form.sections" :key="section.section_key" class="flex items-center justify-between gap-3 px-4 py-2">
-                        <div class="flex items-center gap-2">
-                            <span class="drag-handle cursor-grab text-muted-foreground select-none">⠿</span>
-                            <span class="text-sm">{{ sectionLabels[section.section_key] ?? section.section_key }}</span>
+            <FormSection title="Pie de página" description="Frase breve bajo el nombre del sitio, en todas las páginas.">
+                <form class="flex flex-col gap-3" @submit.prevent="save">
+                    <div class="flex flex-col gap-1.5">
+                        <Label for="footer-tagline">Frase del pie</Label>
+                        <Textarea id="footer-tagline" v-model="form.footer.tagline" maxlength="200" rows="2" placeholder="Ej.: NEGOCIOS. HÁBITOS. VIDA. — SIN TAPUJOS." />
+                        <div class="flex justify-between text-xs text-muted-foreground">
+                            <InputError :message="form.errors['footer.tagline']" />
+                            <span>{{ form.footer.tagline?.length ?? 0 }}/200</span>
                         </div>
-                        <Switch v-model:checked="section.is_visible" />
                     </div>
-                </VueDraggable>
-            </CardContent>
-        </Card>
-
-        <Button :disabled="form.processing" @click="save">Guardar cambios</Button>
+                    <div class="flex items-center gap-3">
+                        <Button type="submit" :disabled="form.processing || !form.isDirty">
+                            <Loader2 v-if="form.processing" class="size-4 animate-spin" />
+                            Guardar
+                        </Button>
+                        <span v-if="form.recentlySuccessful" class="inline-flex items-center gap-1 text-sm text-success"><Check class="size-4" /> Guardado</span>
+                    </div>
+                </form>
+            </FormSection>
+        </div>
     </div>
 
-    <MediaPickerDialog v-model:open="heroPickerOpen" type="image" @select="onHeroPhoto" />
-    <MediaPickerDialog v-model:open="historiaPickerOpen" type="image" @select="onHistoriaPhoto" />
-
-    <Dialog :open="featuredPickerCategory !== null" @update:open="(v) => !v && (featuredPickerCategory = null)">
-        <DialogContent class="max-h-[80vh] overflow-y-auto">
+    <Dialog :open="featuredPickerCategory !== null" @update:open="(v: boolean) => !v && (featuredPickerCategory = null)">
+        <DialogContent class="max-h-[80vh] overflow-y-auto sm:max-w-lg">
             <DialogHeader>
-                <DialogTitle>Elegir destacada — {{ featuredPickerCategory?.category }}</DialogTitle>
+                <DialogTitle>Destacado de {{ featuredPickerCategory?.category }}</DialogTitle>
+                <DialogDescription>Elige el tip que representará a esta categoría en el inicio.</DialogDescription>
             </DialogHeader>
-            <div class="flex flex-col gap-2">
-                <button
-                    v-for="candidate in featuredPickerCategory?.candidates ?? []"
-                    :key="candidate.id"
-                    type="button"
-                    class="flex items-center gap-3 rounded-lg border p-2 text-left hover:border-primary"
-                    @click="chooseFeatured(candidate)"
-                >
-                    <div class="size-12 shrink-0 overflow-hidden rounded bg-muted">
-                        <img v-if="candidate.coverUrl" :src="candidate.coverUrl" class="size-full object-cover" alt="" />
-                    </div>
-                    <div class="min-w-0 flex-1">
-                        <p class="truncate text-sm font-medium">{{ candidate.title }}</p>
-                        <p class="text-xs text-muted-foreground">
-                            {{ candidate.publishedAt ? new Date(candidate.publishedAt).toLocaleDateString('es-MX') : '' }}
-                        </p>
-                    </div>
-                    <Badge v-if="candidate.isFeatured" variant="default">Destacada</Badge>
-                </button>
-                <p v-if="!featuredPickerCategory?.candidates.length" class="py-6 text-center text-sm text-muted-foreground">
-                    No hay publicaciones publicadas en esta categoría todavía.
-                </p>
-            </div>
+            <ul class="flex flex-col gap-2">
+                <li v-for="candidate in featuredPickerCategory?.candidates ?? []" :key="candidate.id">
+                    <button
+                        type="button"
+                        class="flex w-full items-center gap-3 rounded-lg border p-2 text-left transition-colors hover:border-brand hover:bg-brand/5"
+                        :class="{ 'border-brand bg-brand/10': candidate.isFeatured }"
+                        @click="chooseFeatured(candidate)"
+                    >
+                        <span class="size-14 shrink-0 overflow-hidden rounded-md bg-muted">
+                            <img v-if="candidate.coverUrl" :src="candidate.coverUrl" alt="" class="size-full object-cover" />
+                        </span>
+                        <span class="min-w-0 flex-1 text-sm font-medium">{{ candidate.title }}</span>
+                        <Star v-if="candidate.isFeatured" class="size-4 fill-brand text-brand" aria-label="Destacado actual" />
+                    </button>
+                </li>
+            </ul>
         </DialogContent>
     </Dialog>
 </template>

@@ -3,6 +3,7 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -35,6 +36,18 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        // Los controladores usan ->with('success'|'error', ...): se convierten
+        // en el toast de Inertia que escucha resources/js/lib/flashToast.ts.
+        if ($request->hasSession()) {
+            foreach (['success', 'error'] as $type) {
+                $message = $request->session()->get($type);
+                if (is_string($message) && $message !== '') {
+                    Inertia::flash('toast', ['type' => $type, 'message' => $message]);
+                    break;
+                }
+            }
+        }
+
         return [
             ...parent::share($request),
             'name' => config('app.name'),

@@ -11,8 +11,8 @@ import { update } from '@/routes/password';
 
 defineOptions({
     layout: {
-        title: 'Restablecer contraseña',
-        description: 'Escribe tu nueva contraseña a continuación.',
+        title: 'Nueva contraseña',
+        description: 'Elige una contraseña larga y única. Al guardarla podrás iniciar sesión de inmediato.',
     },
 });
 
@@ -33,45 +33,67 @@ const inputEmail = ref(props.email);
         :transform="(data) => ({ ...data, token, email })"
         :reset-on-success="['password', 'password_confirmation']"
         v-slot="{ errors, processing }"
+        class="flex flex-col gap-5"
     >
-        <div class="grid gap-6">
-            <div class="grid gap-2">
-                <Label for="email">Correo electrónico</Label>
-                <Input id="email" type="email" name="email" autocomplete="email" v-model="inputEmail" class="mt-1 block w-full" readonly />
-                <InputError :message="errors.email" class="mt-2" />
-            </div>
-
-            <div class="grid gap-2">
-                <Label for="password">Nueva contraseña</Label>
-                <PasswordInput
-                    id="password"
-                    name="password"
-                    autocomplete="new-password"
-                    class="mt-1 block w-full"
-                    autofocus
-                    placeholder="Nueva contraseña"
-                    :passwordrules="passwordRules"
-                />
-                <InputError :message="errors.password" />
-            </div>
-
-            <div class="grid gap-2">
-                <Label for="password_confirmation">Confirmar contraseña</Label>
-                <PasswordInput
-                    id="password_confirmation"
-                    name="password_confirmation"
-                    autocomplete="new-password"
-                    class="mt-1 block w-full"
-                    placeholder="Confirma la contraseña"
-                    :passwordrules="passwordRules"
-                />
-                <InputError :message="errors.password_confirmation" />
-            </div>
-
-            <Button type="submit" class="mt-4 w-full bg-gold text-ink hover:bg-gold-soft" :disabled="processing" data-test="reset-password-button">
-                <Spinner v-if="processing" />
-                Restablecer contraseña
-            </Button>
+        <div class="grid gap-2">
+            <Label for="email">Correo electrónico</Label>
+            <Input
+                id="email"
+                type="email"
+                name="email"
+                autocomplete="email"
+                v-model="inputEmail"
+                readonly
+                class="h-11 bg-muted px-3.5 text-base text-muted-foreground md:text-base"
+                :aria-invalid="errors.email ? true : undefined"
+                aria-describedby="email-error"
+            />
+            <InputError id="email-error" :message="errors.email" />
         </div>
+
+        <div class="grid gap-2">
+            <Label for="password">Nueva contraseña</Label>
+            <PasswordInput
+                id="password"
+                name="password"
+                required
+                autocomplete="new-password"
+                autofocus
+                placeholder="Nueva contraseña"
+                class="h-11 px-3.5 text-base md:text-base"
+                :passwordrules="passwordRules"
+                :aria-invalid="errors.password ? true : undefined"
+                aria-describedby="password-error"
+            />
+            <InputError id="password-error" :message="errors.password" />
+        </div>
+
+        <div class="grid gap-2">
+            <Label for="password_confirmation">Confirmar contraseña</Label>
+            <PasswordInput
+                id="password_confirmation"
+                name="password_confirmation"
+                required
+                autocomplete="new-password"
+                placeholder="Escríbela de nuevo"
+                class="h-11 px-3.5 text-base md:text-base"
+                :passwordrules="passwordRules"
+                :aria-invalid="errors.password_confirmation ? true : undefined"
+                aria-describedby="password_confirmation-error"
+            />
+            <InputError id="password_confirmation-error" :message="errors.password_confirmation" />
+        </div>
+
+        <Button
+            type="submit"
+            size="lg"
+            class="mt-2 h-11 w-full text-base"
+            :disabled="processing"
+            :aria-busy="processing"
+            data-test="reset-password-button"
+        >
+            <Spinner v-if="processing" />
+            Guardar nueva contraseña
+        </Button>
     </Form>
 </template>

@@ -58,7 +58,7 @@ class MediaController extends Controller
             'file' => [
                 'required', 'file',
                 'max:'.(config('media.max_upload_mb') * 1024),
-                'mimes:jpg,jpeg,png,webp,avif,gif,mp4,mov,webm,pdf',
+                'mimes:jpg,jpeg,png,webp,avif,gif,mp4,mov,webm,pdf,vtt,txt',
             ],
             'collection' => ['nullable', 'string', 'max:255'],
         ]);
@@ -149,6 +149,7 @@ class MediaController extends Controller
             'url' => $media->url(),
             'posterUrl' => $media->variantUrl('poster'),
             'altText' => $media->alt_text,
+            'title' => $media->title,
             'destinationPath' => $media->collection?->path.'/'.$media->filename,
             'disk' => $media->disk,
             'createdAt' => $media->created_at?->toIso8601String(),

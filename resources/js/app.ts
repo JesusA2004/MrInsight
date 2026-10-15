@@ -12,6 +12,9 @@ void createInertiaApp({
     title: (title) => (title ? `${title} — ${appName}` : appName),
     layout: (name) => {
         switch (true) {
+            // Studio ocupa toda la pantalla con su propia interfaz.
+            case name === 'admin/studio/Editor':
+                return undefined;
             case name.startsWith('public/'):
                 return PublicLayout;
             case name.startsWith('auth/'):

@@ -1,8 +1,11 @@
 <script setup lang="ts">
 import { Head, Link } from '@inertiajs/vue3';
+import { ArrowLeft, ArrowRight } from '@lucide/vue';
+import { computed } from 'vue';
+import EditorialCard from '@/components/blocks/shared/EditorialCard.vue';
 import type { CategorySummary, PostSummary } from '@/types';
 
-defineProps<{
+const props = defineProps<{
     categories: CategorySummary[];
     activeCategory: string;
     posts: {
@@ -15,15 +18,9 @@ defineProps<{
     };
 }>();
 
-function formatDate(iso: string | null): string {
-    if (!iso) return '';
-
-    return new Intl.DateTimeFormat('es-MX', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-    }).format(new Date(iso));
-}
+const active = computed(() => props.categories.find((c) => c.slug === props.activeCategory) ?? null);
+const featured = computed(() => (props.posts.currentPage === 1 && props.posts.data.length > 3 ? props.posts.data[0] : null));
+const rest = computed(() => (featured.value ? props.posts.data.slice(1) : props.posts.data));
 
 function filterHref(slug: string): string {
     return slug === 'todos' ? '/tips' : `/tips?categoria=${slug}`;
@@ -31,120 +28,81 @@ function filterHref(slug: string): string {
 </script>
 
 <template>
-    <Head title="Tips" />
+    <Head :title="active ? `Tips de ${active.name}` : 'Tips'">
+        <meta head-key="description" name="description" :content="active?.description ?? 'Ideas prácticas sobre negocios, hábitos y vida. Sin tapujos.'" />
+    </Head>
 
-    <section class="border-b border-white/10 py-16">
-        <div class="container-editorial">
-            <p class="text-sm font-medium tracking-[0.3em] text-gold">TIPS</p>
-            <h1 class="text-headline mt-4 font-display text-paper">
-                IDEAS QUE DEJAN HUELLA.
-            </h1>
+    <div class="tone-ink">
+        <section class="pt-16 pb-10 lg:pt-24">
+            <div class="container-editorial">
+                <p class="sn-eyebrow type-eyebrow">Tips · {{ posts.total }} {{ posts.total === 1 ? 'idea' : 'ideas' }}</p>
+                <h1 class="type-display-xl mt-5 max-w-4xl text-paper">
+                    {{ active ? active.name.toUpperCase() + '.' : 'IDEAS QUE DEJAN HUELLA.' }}
+                </h1>
+                <p v-if="active?.description" class="type-lead mt-6 max-w-2xl text-mist">{{ active.description }}</p>
 
-            <div class="mt-8 flex flex-wrap gap-3">
-                <Link
-                    :href="filterHref('todos')"
-                    class="flex h-11 items-center rounded-full border px-5 text-sm tracking-wide uppercase transition-colors"
-                    :class="
-                        activeCategory === 'todos'
-                            ? 'border-gold bg-gold text-ink'
-                            : 'border-white/20 text-paper/80 hover:border-gold hover:text-gold'
-                    "
-                >
-                    Todos
-                </Link>
-                <Link
-                    v-for="category in categories"
-                    :key="category.slug"
-                    :href="filterHref(category.slug)"
-                    class="flex h-11 items-center rounded-full border px-5 text-sm tracking-wide uppercase transition-colors"
-                    :class="
-                        activeCategory === category.slug
-                            ? 'border-gold bg-gold text-ink'
-                            : 'border-white/20 text-paper/80 hover:border-gold hover:text-gold'
-                    "
-                >
-                    {{ category.name }}
-                </Link>
+                <nav class="scrollbar-none -mx-5 mt-10 flex gap-2 overflow-x-auto px-5 pb-1" aria-label="Filtrar por categoría">
+                    <Link
+                        v-for="item in [{ slug: 'todos', name: 'Todos', color: '' }, ...categories]"
+                        :key="item.slug"
+                        :href="filterHref(item.slug)"
+                        preserve-scroll
+                        class="flex h-11 shrink-0 items-center gap-2 rounded-full border px-5 text-[13px] font-medium tracking-[0.08em] uppercase transition-colors"
+                        :class="
+                            activeCategory === item.slug
+                                ? 'border-gold bg-gold text-ink'
+                                : 'border-line text-paper/75 hover:border-gold hover:text-gold'
+                        "
+                        :aria-current="activeCategory === item.slug ? 'page' : undefined"
+                    >
+                        <span v-if="item.color" class="size-1.5 rounded-full" :style="{ background: activeCategory === item.slug ? 'var(--color-ink)' : item.color }" aria-hidden="true" />
+                        {{ item.name }}
+                    </Link>
+                </nav>
             </div>
-        </div>
-    </section>
+        </section>
 
-    <section class="py-16">
-        <div class="container-editorial">
-            <div
-                v-if="posts.data.length"
-                class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
-            >
-                <Link
-                    v-for="post in posts.data"
-                    :key="post.id"
-                    :href="`/tips/${post.slug}`"
-                    class="group flex flex-col overflow-hidden rounded-xl border border-white/10 bg-ink-soft"
-                >
-                    <div class="aspect-[16/10] w-full overflow-hidden bg-ink">
-                        <img
-                            v-if="post.coverUrl"
-                            :src="post.coverUrl"
-                            :alt="post.title"
-                            class="size-full object-cover transition-transform duration-300 group-hover:scale-105"
-                            loading="lazy"
-                        />
+        <section class="border-t border-line pt-12 pb-24">
+            <div class="container-editorial">
+                <p v-if="!posts.data.length" class="sn-empty">
+                    Todavía no hay tips en esta categoría. Lo bueno se está escribiendo.
+                </p>
+
+                <template v-else>
+                    <EditorialCard
+                        v-if="featured"
+                        :post="featured"
+                        variant="overlay"
+                        heading-level="h2"
+                        class="mb-12"
+                    />
+                    <div class="sn-posts-grid">
+                        <EditorialCard v-for="post in rest" :key="post.id" :post="post" heading-level="h2" />
                     </div>
-                    <div class="flex flex-1 flex-col p-5">
-                        <span
-                            v-if="post.category"
-                            class="text-xs font-medium tracking-[0.2em] uppercase"
-                            :style="{ color: post.category.color }"
-                        >
-                            {{ post.category.name }}
-                        </span>
-                        <p class="mt-2 font-display text-lg text-paper">
-                            {{ post.title }}
-                        </p>
-                        <p
-                            v-if="post.excerpt"
-                            class="mt-2 line-clamp-2 text-sm text-mist"
-                        >
-                            {{ post.excerpt }}
-                        </p>
-                        <p class="mt-4 text-xs text-mist">
-                            {{ formatDate(post.publishedAt) }}
-                        </p>
-                    </div>
-                </Link>
-            </div>
-            <div
-                v-else
-                class="rounded-xl border border-dashed border-white/15 p-16 text-center text-mist"
-            >
-                Todavía no hay tips publicados en esta categoría.
-            </div>
+                </template>
 
-            <div
-                v-if="posts.lastPage > 1"
-                class="mt-12 flex items-center justify-between"
-            >
-                <Link
-                    v-if="posts.prevPageUrl"
-                    :href="posts.prevPageUrl"
-                    class="flex h-11 items-center rounded-md border border-white/20 px-5 text-sm text-paper hover:border-gold hover:text-gold"
-                >
-                    ← Anteriores
-                </Link>
-                <span v-else />
-                <span class="text-sm text-mist"
-                    >Página {{ posts.currentPage }} de
-                    {{ posts.lastPage }}</span
-                >
-                <Link
-                    v-if="posts.nextPageUrl"
-                    :href="posts.nextPageUrl"
-                    class="flex h-11 items-center rounded-md border border-white/20 px-5 text-sm text-paper hover:border-gold hover:text-gold"
-                >
-                    Siguientes →
-                </Link>
-                <span v-else />
+                <nav v-if="posts.lastPage > 1" class="mt-16 flex items-center justify-between gap-4 border-t border-line pt-8" aria-label="Paginación">
+                    <Link
+                        v-if="posts.prevPageUrl"
+                        :href="posts.prevPageUrl"
+                        class="btn-editorial btn-editorial--secondary"
+                        rel="prev"
+                    >
+                        <ArrowLeft class="size-4" aria-hidden="true" /> Anteriores
+                    </Link>
+                    <span v-else />
+                    <span class="type-caption text-mist">Página {{ posts.currentPage }} de {{ posts.lastPage }}</span>
+                    <Link
+                        v-if="posts.nextPageUrl"
+                        :href="posts.nextPageUrl"
+                        class="btn-editorial btn-editorial--secondary"
+                        rel="next"
+                    >
+                        Siguientes <ArrowRight class="size-4" aria-hidden="true" />
+                    </Link>
+                    <span v-else />
+                </nav>
             </div>
-        </div>
-    </section>
+        </section>
+    </div>
 </template>

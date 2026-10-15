@@ -8,7 +8,9 @@ use App\Models\Page;
 use App\Models\PageEntry;
 use App\Models\Post;
 use App\Models\SiteSetting;
+use App\Models\StudioPage;
 use App\Models\ThemeSetting;
+use App\Studio\StudioReferences;
 
 /**
  * Antes de que MediaController permita borrar un archivo, esta clase
@@ -21,6 +23,8 @@ use App\Models\ThemeSetting;
  */
 class MediaUsageService
 {
+    public function __construct(private readonly StudioReferences $studioReferences) {}
+
     /**
      * @return array<int, array{type: string, label: string, href: string}>
      */
@@ -65,6 +69,15 @@ class MediaUsageService
             }
         }
 
+        foreach (StudioPage::query()->with('publishedVersion')->get() as $page) {
+            $published = $page->publishedVersion?->document;
+            if ($published !== null && in_array($media->id, $this->studioReferences->mediaIds($published), true)) {
+                $usages[] = ['type' => 'Studio (publicado)', 'label' => $page->title, 'href' => "/admin/studio/{$page->id}"];
+            } elseif ($page->draft !== null && in_array($media->id, $this->studioReferences->mediaIds($page->draft), true)) {
+                $usages[] = ['type' => 'Studio (borrador)', 'label' => $page->title, 'href' => "/admin/studio/{$page->id}"];
+            }
+        }
+
         return $usages;
     }
 
@@ -97,6 +110,18 @@ class MediaUsageService
         }
         if ($changed) {
             ThemeSetting::set('logo', $logo);
+        }
+
+        // Borradores de Studio: se retira la referencia (el editor mostrará
+        // el hueco). Las versiones publicadas son historial inmutable; el
+        // renderizador omite medios inexistentes para que el sitio no se rompa.
+        foreach (StudioPage::query()->whereNotNull('draft')->get() as $page) {
+            if (in_array($media->id, $this->studioReferences->mediaIds($page->draft ?? []), true)) {
+                $page->update([
+                    'draft' => $this->studioReferences->withoutMedia($page->draft ?? [], $media->id),
+                    'draft_revision' => $page->draft_revision + 1,
+                ]);
+            }
         }
     }
 }

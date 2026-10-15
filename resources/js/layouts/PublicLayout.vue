@@ -2,20 +2,23 @@
 import { watchEffect } from 'vue';
 import SiteFooter from '@/components/public/SiteFooter.vue';
 import SiteHeader from '@/components/public/SiteHeader.vue';
-import type { SiteIdentity, SocialLinkSummary, ThemePayload } from '@/types';
+import { loadFonts } from '@/lib/fonts';
+import type { CategorySummary, SiteIdentity, SocialLinkSummary, ThemePayload } from '@/types';
 
-const { site, social, theme } = defineProps<{
+const { site, social, theme, categories } = defineProps<{
     site: SiteIdentity;
     social: SocialLinkSummary[];
     theme?: ThemePayload;
+    categories?: CategorySummary[];
 }>();
 
 const RADIUS_REM: Record<string, number> = { none: 0, sm: 0.25, md: 0.5, lg: 0.75, xl: 1, full: 9999 };
 
 /**
  * Aplica la apariencia publicada (colores, tipografías, radios) como
- * variables CSS en :root. Así /admin/apariencia se refleja en el sitio
- * público de inmediato, sin recompilar Vite.
+ * variables CSS en :root: /admin/apariencia se refleja en el sitio y en
+ * todos los bloques de Studio sin recompilar Vite. Las familias que no van
+ * en el bundle se cargan bajo demanda.
  */
 watchEffect(() => {
     if (!theme) return;
@@ -28,6 +31,7 @@ watchEffect(() => {
 
     if (theme.fonts?.display) root.setProperty('--font-display', `"${theme.fonts.display}", ui-serif, Georgia, serif`);
     if (theme.fonts?.body) root.setProperty('--font-sans', `"${theme.fonts.body}", ui-sans-serif, system-ui, sans-serif`);
+    loadFonts([theme.fonts?.display, theme.fonts?.body]);
 
     const buttonRem = theme.buttons?.radius ? RADIUS_REM[theme.buttons.radius] : undefined;
     if (buttonRem !== undefined) {
@@ -53,11 +57,16 @@ watchEffect(() => {
 </script>
 
 <template>
-    <div class="min-h-screen bg-ink font-sans text-paper antialiased">
+    <div class="min-h-screen bg-ink font-sans text-paper antialiased selection:bg-gold selection:text-ink">
+        <a
+            href="#contenido"
+            class="sr-only z-[60] rounded-md bg-gold px-4 py-3 font-semibold text-ink focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+            >Saltar al contenido</a
+        >
         <SiteHeader :site="site" :social="social" />
-        <main>
+        <main id="contenido" tabindex="-1" class="outline-none">
             <slot />
         </main>
-        <SiteFooter :site="site" :social="social" />
+        <SiteFooter :site="site" :social="social" :categories="categories ?? []" />
     </div>
 </template>

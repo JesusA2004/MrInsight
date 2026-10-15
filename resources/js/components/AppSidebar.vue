@@ -1,6 +1,21 @@
 <script setup lang="ts">
 import { Link } from '@inertiajs/vue3';
-import { ClipboardList, Database, FileText, FolderOpen, Home, Image, LayoutGrid, Palette, Share2, Tags } from '@lucide/vue';
+import {
+    CalendarDays,
+    ClipboardList,
+    Database,
+    ExternalLink,
+    FileText,
+    FolderOpen,
+    Home,
+    Image,
+    LayoutDashboard,
+    Palette,
+    PenTool,
+    Settings,
+    Share2,
+    Tags,
+} from '@lucide/vue';
 import AppLogo from '@/components/AppLogo.vue';
 import NavMain from '@/components/NavMain.vue';
 import NavUser from '@/components/NavUser.vue';
@@ -12,69 +27,56 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarRail,
 } from '@/components/ui/sidebar';
-import { dashboard } from '@/routes/admin';
+import { calendario, dashboard } from '@/routes/admin';
 import actividad from '@/routes/admin/actividad';
 import almacenamiento from '@/routes/admin/almacenamiento';
 import apariencia from '@/routes/admin/apariencia';
-import publicaciones from '@/routes/admin/publicaciones';
 import categorias from '@/routes/admin/categorias';
-import multimedia from '@/routes/admin/multimedia';
-import redesSociales from '@/routes/admin/redes-sociales';
-import paginas from '@/routes/admin/paginas';
 import inicio from '@/routes/admin/inicio';
-import type { NavItem } from '@/types';
+import multimedia from '@/routes/admin/multimedia';
+import paginas from '@/routes/admin/paginas';
+import publicaciones from '@/routes/admin/publicaciones';
+import redesSociales from '@/routes/admin/redes-sociales';
+import studio from '@/routes/admin/studio';
+import { edit as profileEdit } from '@/routes/profile';
+import type { NavGroup } from '@/types';
 
-const mainNavItems: NavItem[] = [
+/** Navegación agrupada (solo módulos existentes). Ver skill mrinsight-admin-ux. */
+const groups: NavGroup[] = [
     {
-        title: 'Panel',
-        href: dashboard(),
-        icon: LayoutGrid,
+        label: 'General',
+        items: [
+            { title: 'Panel', href: dashboard(), icon: LayoutDashboard },
+            { title: 'Studio', href: studio.index(), icon: PenTool },
+            { title: 'Calendario editorial', href: calendario(), icon: CalendarDays },
+        ],
     },
     {
-        title: 'Publicaciones',
-        href: publicaciones.index(),
-        icon: FolderOpen,
+        label: 'Contenido',
+        items: [
+            { title: 'Publicaciones', href: publicaciones.index(), icon: FolderOpen },
+            { title: 'Categorías', href: categorias.index(), icon: Tags },
+            { title: 'Multimedia', href: multimedia.index(), icon: Image },
+            { title: 'Páginas', href: paginas.index(), icon: FileText },
+        ],
     },
     {
-        title: 'Categorías',
-        href: categorias.index(),
-        icon: Tags,
+        label: 'Sitio web',
+        items: [
+            { title: 'Apariencia', href: apariencia.edit(), icon: Palette },
+            { title: 'Inicio', href: inicio.edit(), icon: Home },
+            { title: 'Redes sociales', href: redesSociales.index(), icon: Share2 },
+        ],
     },
     {
-        title: 'Multimedia',
-        href: multimedia.index(),
-        icon: Image,
-    },
-    {
-        title: 'Inicio',
-        href: inicio.edit(),
-        icon: Home,
-    },
-    {
-        title: 'Apariencia',
-        href: apariencia.edit(),
-        icon: Palette,
-    },
-    {
-        title: 'Almacenamiento',
-        href: almacenamiento.index(),
-        icon: Database,
-    },
-    {
-        title: 'Actividad',
-        href: actividad.index(),
-        icon: ClipboardList,
-    },
-    {
-        title: 'Redes sociales',
-        href: redesSociales.index(),
-        icon: Share2,
-    },
-    {
-        title: 'Páginas',
-        href: paginas.index(),
-        icon: FileText,
+        label: 'Sistema',
+        items: [
+            { title: 'Almacenamiento', href: almacenamiento.index(), icon: Database },
+            { title: 'Actividad', href: actividad.index(), icon: ClipboardList },
+            { title: 'Configuración', href: profileEdit(), icon: Settings },
+        ],
     },
 ];
 </script>
@@ -94,12 +96,23 @@ const mainNavItems: NavItem[] = [
         </SidebarHeader>
 
         <SidebarContent>
-            <NavMain :items="mainNavItems" />
+            <NavMain :groups="groups" />
         </SidebarContent>
 
         <SidebarFooter>
+            <SidebarMenu>
+                <SidebarMenuItem>
+                    <SidebarMenuButton as-child tooltip="Ver sitio público">
+                        <a href="/" target="_blank" rel="noopener">
+                            <ExternalLink />
+                            <span>Ver sitio público</span>
+                        </a>
+                    </SidebarMenuButton>
+                </SidebarMenuItem>
+            </SidebarMenu>
             <NavUser />
         </SidebarFooter>
+        <SidebarRail />
     </Sidebar>
     <slot />
 </template>
