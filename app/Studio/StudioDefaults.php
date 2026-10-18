@@ -21,6 +21,7 @@ class StudioDefaults
         'mi-historia' => 'Mi historia',
         'mi-proceso' => 'Mi proceso',
         'redes' => 'Redes',
+        'tip' => 'Plantilla de Tips',
     ];
 
     /**
@@ -33,6 +34,7 @@ class StudioDefaults
             'mi-historia' => $this->historia(),
             'mi-proceso' => $this->proceso(),
             'redes' => $this->redes(),
+            'tip' => $this->tip(),
             default => $this->blank(),
         };
 
@@ -172,6 +174,39 @@ class StudioDefaults
                 'media' => [],
             ]),
             $this->section('social', ['layout' => 'cards', 'eyebrow' => '', 'title' => ''], motion: $this->motion('slide-up')),
+        ];
+    }
+
+    /**
+     * Plantilla dramática por defecto para renderizar cada publicación (tip).
+     * Sus bloques se enlazan a la publicación actual: portada, título e intro
+     * por bind; el cuerpo Tiptap por page-body; y la metainformación, galería
+     * y publicaciones relacionadas por los bloques específicos de tips.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function tip(): array
+    {
+        return [
+            $this->section('hero', ['layout' => 'cinematic', 'height' => 'tall', 'overlay' => 0.55, 'spacing' => 'editorial', 'tone' => 'ink'], [
+                'media' => [
+                    $this->el('image', ['bind' => 'cover', 'alt' => '', 'priority' => true], ['base' => ['aspectRatio' => '16/9']], $this->motion('reveal')),
+                ],
+                'content' => [
+                    $this->el('post-meta', ['showCategory' => true, 'showDate' => true, 'showReadingTime' => true], motion: $this->motion('fade')),
+                    $this->el('heading', ['bind' => 'title', 'level' => 'h1', 'size' => 'xl'], motion: $this->motion('slide-up')),
+                    $this->el('text', ['bind' => 'intro', 'size' => 'lead'], motion: $this->motion('fade', 150)),
+                ],
+            ]),
+            $this->section('columns', ['layout' => 'one', 'width' => 'narrow', 'spacing' => 'editorial', 'tone' => 'ink'], [
+                'col1' => [
+                    $this->el('page-body', ['page' => '']),
+                    $this->el('divider', ['variant' => 'short']),
+                    $this->el('share', ['label' => 'Compartir']),
+                ],
+            ]),
+            $this->section('gallery', ['layout' => 'bento', 'source' => 'post', 'spacing' => 'balanced', 'tone' => 'ink', 'eyebrow' => '', 'title' => '']),
+            $this->section('posts', ['layout' => 'cards', 'source' => 'related', 'eyebrow' => 'SIGUE LEYENDO', 'title' => 'TAMBIÉN TE PUEDE INTERESAR', 'limit' => 3, 'showExcerpt' => true, 'showDate' => false, 'linkLabel' => '', 'spacing' => 'balanced', 'tone' => 'ink-soft'], motion: $this->motion('slide-up')),
         ];
     }
 

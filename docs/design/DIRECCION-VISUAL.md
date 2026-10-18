@@ -1,5 +1,9 @@
 # Dirección visual — MR. INSIGHT
 
+## Skills operativas (`.claude/skills/mrinsight-*`)
+Esta dirección se aplica mediante seis skills reutilizables que Claude Code invoca según la tarea:
+`mrinsight-visual-design` (dirección de arte y rúbrica de calidad), `mrinsight-ui-components` (componentes Vue/shadcn sin duplicados), `mrinsight-public-experience` (sitio público por bloques), `mrinsight-admin-ux` (panel SaaS), `mrinsight-visual-builder` (Studio) y `mrinsight-motion-accessibility` (movimiento + accesibilidad). Cada skill está fundamentada en el código real y define objetivo, reglas, restricciones, criterios de aceptación y cómo verificar.
+
 ## Concepto: "Editorial nocturno"
 Revista digital premium leída de noche: fondo carbón profundo, papel marfil para el texto, oro viejo como subrayado de ideas. La fotografía es protagonista; la tipografía display (Fraunces) da voz; Instrument Sans mantiene la lectura limpia. El panel administrativo es la "sala de redacción": clara, ordenada, con la misma tinta y el mismo oro como acentos.
 

@@ -58,6 +58,40 @@ class PostPresenter
     }
 
     /**
+     * Calcula el tiempo de lectura estimado (en minutos, mínimo 1) recorriendo
+     * el cuerpo Tiptap y contando palabras a ~220 palabras por minuto.
+     */
+    public function readingMinutes(Post $post): int
+    {
+        $words = preg_split('/\s+/', trim($this->plainText($post->body ?? []))) ?: [];
+        $count = count(array_filter($words, fn (string $word) => $word !== ''));
+
+        return max(1, (int) round($count / 220));
+    }
+
+    /**
+     * Concatena de forma recursiva el texto plano de un nodo Tiptap.
+     *
+     * @param  array<string, mixed>  $node
+     */
+    private function plainText(array $node): string
+    {
+        $text = '';
+
+        if (isset($node['text']) && is_string($node['text'])) {
+            $text .= ' '.$node['text'];
+        }
+
+        foreach ((array) ($node['content'] ?? []) as $child) {
+            if (is_array($child)) {
+                $text .= ' '.$this->plainText($child);
+            }
+        }
+
+        return $text;
+    }
+
+    /**
      * @return Collection<int, array<string, mixed>>
      */
     public function related(Post $post, int $limit = 3): Collection

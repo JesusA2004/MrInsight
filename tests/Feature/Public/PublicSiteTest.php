@@ -71,9 +71,12 @@ test('post detail page renders a published post', function () {
     $response = $this->get("/tips/{$post->slug}");
 
     $response->assertOk();
+    // La página de un tip ahora se renderiza con el motor de bloques de
+    // Studio: la plantilla "tip" se resuelve contra la publicación actual.
     $response->assertInertia(fn ($page) => $page
         ->component('public/PostShow')
-        ->where('post.slug', $post->slug)
+        ->where('studio.meta.title', $post->title)
+        ->where('studio.resolved.post.slug', $post->slug)
     );
 });
 

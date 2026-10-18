@@ -78,6 +78,15 @@ export interface ResolvedPage {
     coverMediaId: number | null;
 }
 
+export interface ResolvedPost {
+    slug: string;
+    category: { name: string; slug: string; color: string } | null;
+    author: string | null;
+    publishedAt: string | null;
+    readingMinutes: number;
+    gallery: { id: number; url: string; alt: string | null }[];
+}
+
 export interface StudioResolved {
     media: Record<string, ResolvedMedia>;
     feeds: Record<string, PostSummary[]>;
@@ -86,6 +95,7 @@ export interface StudioResolved {
     pages: Record<string, ResolvedPage>;
     social: SocialLinkSummary[];
     currentPage: string | null;
+    post: ResolvedPost | null;
 }
 
 export interface StudioPayload {

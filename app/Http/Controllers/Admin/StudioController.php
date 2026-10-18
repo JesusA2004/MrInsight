@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\Page;
+use App\Models\Post;
 use App\Models\SocialLink;
 use App\Models\StudioPage;
 use App\Models\StudioVersion;
@@ -93,11 +94,14 @@ class StudioController extends Controller
         $published = $this->studio->publishedDocument($page);
         $cmsKey = $page->isSystem() && Page::query()->where('key', $page->key)->exists() ? $page->key : null;
 
+        // La plantilla de Tips se resuelve contra una publicación de muestra.
+        $sample = $page->key === 'tip' ? $this->sampleTipPost() : null;
+
         return Inertia::render('admin/studio/Editor', [
             'page' => $this->pagePayload($page),
             'document' => $document,
             'published' => $published,
-            'resolved' => $resolver->resolve($document, $cmsKey),
+            'resolved' => $resolver->resolve($document, $cmsKey, $sample),
             'versions' => $this->versionsPayload($page),
             'pages' => StudioPage::query()->orderBy('id')->get(['id', 'title', 'key', 'kind'])->map(fn (StudioPage $p) => [
                 'id' => $p->id, 'title' => $p->title, 'key' => $p->key, 'kind' => $p->kind, 'path' => $p->publicPath(),
@@ -122,9 +126,11 @@ class StudioController extends Controller
     {
         $this->authorizeStudio();
 
+        $sample = $page->key === 'tip' ? $this->sampleTipPost() : null;
+
         return Inertia::render('public/StudioCanvas', [
             ...$siteData->base(),
-            'studio' => $presenter->payload($page, $this->studio->draftDocument($page)),
+            'studio' => $presenter->payload($page, $this->studio->draftDocument($page), $sample),
         ]);
     }
 
@@ -157,6 +163,11 @@ class StudioController extends Controller
     {
         $this->authorizeStudio();
         $request->validate(['document' => ['required', 'array']]);
+
+        // La plantilla de Tips se resuelve contra una publicación de muestra.
+        if ($page->key === 'tip') {
+            return response()->json($resolver->resolve((array) $request->input('document'), null, $this->sampleTipPost()));
+        }
 
         $cmsKey = $page->isSystem() ? $page->key : null;
 
@@ -220,9 +231,11 @@ class StudioController extends Controller
     {
         $this->authorizeStudio();
 
+        $sample = $page->key === 'tip' ? $this->sampleTipPost() : null;
+
         return Inertia::render('public/StudioPage', [
             ...$siteData->base(),
-            'studio' => $presenter->payload($page, $this->studio->draftDocument($page)),
+            'studio' => $presenter->payload($page, $this->studio->draftDocument($page), $sample),
             'previewing' => true,
         ]);
     }
@@ -276,6 +289,18 @@ class StudioController extends Controller
     private function authorizeStudio(): void
     {
         abort_unless(request()->user()?->canManagePosts(), 403);
+    }
+
+    /**
+     * Publicación de muestra para previsualizar la plantilla de Tips.
+     */
+    private function sampleTipPost(): ?Post
+    {
+        return Post::query()
+            ->published()
+            ->with(['category', 'cover', 'author', 'galleryMedia'])
+            ->latest('published_at')
+            ->first();
     }
 
     /**

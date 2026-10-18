@@ -13,6 +13,7 @@ const EMPTY: RenderContext = {
         pages: {},
         social: [],
         currentPage: null,
+        post: null,
     },
     editing: false,
     social: [],

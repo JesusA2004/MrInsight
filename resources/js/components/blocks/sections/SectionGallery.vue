@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ImagePlus } from '@lucide/vue';
 import { computed, ref } from 'vue';
-import type { StudioNode } from '@/studio/types';
+import type { ResolvedMedia, StudioNode } from '@/studio/types';
 import { mediaFor, useRenderCtx } from '../context';
 import Carousel from '../shared/Carousel.vue';
 import SectionHeader from '../shared/SectionHeader.vue';
@@ -9,12 +9,32 @@ import SectionHeader from '../shared/SectionHeader.vue';
 const { node } = defineProps<{ node: StudioNode }>();
 const ctx = useRenderCtx();
 
+interface PhotoMedia {
+    url: string | null;
+    alt: string | null;
+    width?: number | null;
+    height?: number | null;
+}
+interface Photo {
+    key: number;
+    media: PhotoMedia;
+    caption: string;
+}
+
 const layout = computed(() => String(node.props.layout ?? 'grid'));
-const photos = computed(() =>
-    ((node.props.items as { media: number | null; caption: string }[]) ?? [])
+const photos = computed<Photo[]>(() => {
+    // Origen: galería de la publicación actual (plantilla de Tips).
+    if (node.props.source === 'post') {
+        return (ctx.resolved.post?.gallery ?? [])
+            .filter((g) => Boolean(g.url))
+            .map((g) => ({ key: g.id, media: { url: g.url, alt: g.alt }, caption: '' }));
+    }
+
+    // Origen: fotografías elegidas manualmente.
+    return ((node.props.items as { media: number | null; caption: string }[]) ?? [])
         .map((item, i) => ({ key: i, media: mediaFor(ctx, item.media), caption: item.caption }))
-        .filter((p) => p.media !== null),
-);
+        .filter((p): p is { key: number; media: ResolvedMedia; caption: string } => p.media !== null);
+});
 const active = ref(0);
 const current = computed(() => photos.value[Math.min(active.value, photos.value.length - 1)]);
 </script>

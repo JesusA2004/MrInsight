@@ -21,11 +21,11 @@ Regla: antes de crear un componente, buscarlo aquí. Si existe, se extiende con 
 | `sections/SectionColumns` | one, two, two-wide-left, two-wide-right, three, bento (+ modo tarjetas). |
 | `sections/SectionPosts` | cards, magazine, spotlight, carousel, list (feed dinámico del CMS). |
 | `sections/SectionCategories` | cards, list, bento («Empieza aquí»). |
-| `sections/SectionGallery` | grid, bento, masonry, carousel, spotlight. |
+| `sections/SectionGallery` | grid, bento, masonry, carousel, spotlight. Origen `manual` (fotos elegidas) o `post` (galería de la publicación actual). |
 | `sections/SectionTimeline` | vertical, alternating, chapters (entradas del CMS o capítulos manuales). |
 | `sections/SectionCta` | band, card, split. |
 | `sections/SectionSocial` | cards, list, pills. |
-| `elements/Block*` | eyebrow, heading, text, buttons, image, video, quote, question, divider, spacer, social-links, page-body, unsupported. |
+| `elements/Block*` | eyebrow, heading, text, buttons, image, video, quote, question, divider, spacer, social-links, page-body, **post-meta** (categoría/fecha/tiempo de lectura de la publicación), **share** (compartir/copiar enlace), unsupported. |
 | `shared/EditorialCard` | **Única** tarjeta de artículo: default, feature, horizontal, overlay. |
 | `shared/SectionHeader` | Antetítulo + título + enlace de sección. |
 | `shared/Carousel` | Carrusel accesible por scroll-snap (botones + teclado, sin autoplay). |
@@ -37,6 +37,7 @@ Regla: antes de crear un componente, buscarlo aquí. Si existe, se extiende con 
 | `AdminPageHeader` | Título, descripción, antetítulo y acciones de cada pantalla. |
 | `StatCard` | KPI con cifra display, ícono y tono. |
 | `BarChart` | Gráfica de barras de una serie, accesible (tooltip + tabla). |
+| `TrendChart` | Gráfica de líneas/área de dos series (visitas + únicos) para Estadísticas; SVG sin dependencias, theme-aware, tooltip + tabla accesible. |
 | `EmptyState` | Estado vacío con acción. |
 | `FormSection` | Sección de formulario en dos columnas. |
 | `StatusBadge` | Estado: draft, scheduled, published, archived, changes, unpublished. |

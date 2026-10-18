@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Services\PostPresenter;
 use App\Services\PublicSiteDataService;
+use App\Studio\StudioPagePresenter;
+use App\Studio\StudioService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -41,7 +43,7 @@ class TipsController extends Controller
         ]);
     }
 
-    public function show(string $slug, PublicSiteDataService $siteData, PostPresenter $presenter): Response
+    public function show(string $slug, PublicSiteDataService $siteData, StudioService $studio, StudioPagePresenter $presenter): Response
     {
         $post = Post::query()
             ->published()
@@ -49,10 +51,11 @@ class TipsController extends Controller
             ->with(['category', 'cover', 'author', 'galleryMedia'])
             ->firstOrFail();
 
+        $page = $studio->ensureSystemPage('tip');
+
         return Inertia::render('public/PostShow', [
             ...$siteData->base(),
-            'post' => $presenter->detail($post),
-            'related' => $presenter->related($post),
+            'studio' => $presenter->payload($page, $studio->publishedDocument($page) ?? $studio->draftDocument($page), $post),
         ]);
     }
 }

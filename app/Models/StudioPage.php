@@ -37,6 +37,7 @@ class StudioPage extends Model
         'mi-historia' => '/mi-historia',
         'mi-proceso' => '/mi-proceso',
         'redes' => '/redes',
+        'tip' => '/tips',
     ];
 
     /** Slugs que una página personalizada nunca puede ocupar. */

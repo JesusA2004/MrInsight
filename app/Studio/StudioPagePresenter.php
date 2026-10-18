@@ -3,6 +3,7 @@
 namespace App\Studio;
 
 use App\Models\Page;
+use App\Models\Post;
 use App\Models\StudioPage;
 
 /**
@@ -30,8 +31,23 @@ class StudioPagePresenter
      * @param  array<string, mixed>  $document
      * @return array<string, mixed>
      */
-    public function payload(StudioPage $page, array $document): array
+    public function payload(StudioPage $page, array $document, ?Post $currentPost = null): array
     {
+        // Al renderizar una publicación, el documento (plantilla de tips) se
+        // resuelve contra el post actual y el meta toma sus propios datos SEO.
+        if ($currentPost !== null) {
+            return [
+                'document' => $document,
+                'resolved' => $this->resolver->resolve($document, $currentPost->slug, $currentPost),
+                'meta' => [
+                    'key' => $page->key,
+                    'title' => $currentPost->title,
+                    'seoTitle' => $currentPost->seo_title ?? $currentPost->title,
+                    'seoDescription' => $currentPost->seo_description ?? $currentPost->excerpt,
+                ],
+            ];
+        }
+
         $cmsPage = $page->isSystem() ? Page::query()->where('key', $page->key)->first() : null;
 
         return [

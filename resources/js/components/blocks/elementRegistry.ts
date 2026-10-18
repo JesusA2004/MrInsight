@@ -5,8 +5,10 @@ import BlockEyebrow from './elements/BlockEyebrow.vue';
 import BlockHeading from './elements/BlockHeading.vue';
 import BlockImage from './elements/BlockImage.vue';
 import BlockPageBody from './elements/BlockPageBody.vue';
+import BlockPostMeta from './elements/BlockPostMeta.vue';
 import BlockQuestion from './elements/BlockQuestion.vue';
 import BlockQuote from './elements/BlockQuote.vue';
+import BlockShare from './elements/BlockShare.vue';
 import BlockSocialLinks from './elements/BlockSocialLinks.vue';
 import BlockSpacer from './elements/BlockSpacer.vue';
 import BlockText from './elements/BlockText.vue';
@@ -29,4 +31,6 @@ export const elementComponents: Record<string, Component> = {
     spacer: BlockSpacer,
     'social-links': BlockSocialLinks,
     'page-body': BlockPageBody,
+    'post-meta': BlockPostMeta,
+    share: BlockShare,
 };

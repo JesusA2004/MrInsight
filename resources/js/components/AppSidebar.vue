@@ -2,6 +2,7 @@
 import { Link } from '@inertiajs/vue3';
 import {
     CalendarDays,
+    ChartColumn,
     ClipboardList,
     Database,
     ExternalLink,
@@ -29,7 +30,7 @@ import {
     SidebarMenuItem,
     SidebarRail,
 } from '@/components/ui/sidebar';
-import { calendario, dashboard } from '@/routes/admin';
+import { calendario, dashboard, estadisticas } from '@/routes/admin';
 import actividad from '@/routes/admin/actividad';
 import almacenamiento from '@/routes/admin/almacenamiento';
 import apariencia from '@/routes/admin/apariencia';
@@ -49,6 +50,7 @@ const groups: NavGroup[] = [
         label: 'General',
         items: [
             { title: 'Panel', href: dashboard(), icon: LayoutDashboard },
+            { title: 'Estadísticas', href: estadisticas(), icon: ChartColumn },
             { title: 'Studio', href: studio.index(), icon: PenTool },
             { title: 'Calendario editorial', href: calendario(), icon: CalendarDays },
         ],

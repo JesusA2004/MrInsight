@@ -82,7 +82,7 @@ test('studio index lists the system pages generated from the cms', function () {
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('admin/studio/Index')
-            ->has('pages', 4)
+            ->has('pages', 5)
             ->where('pages.0.key', 'home')
             ->where('pages.0.isPublished', true)
         );

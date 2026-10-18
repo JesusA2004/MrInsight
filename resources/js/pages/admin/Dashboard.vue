@@ -2,8 +2,10 @@
 import { Head, Link } from '@inertiajs/vue3';
 import {
     ArrowRight,
+    ArrowUpRight,
     CalendarClock,
     Clapperboard,
+    Eye,
     FilePen,
     FileText,
     HardDrive,
@@ -19,7 +21,7 @@ import EmptyState from '@/components/admin/EmptyState.vue';
 import StatCard from '@/components/admin/StatCard.vue';
 import StatusBadge from '@/components/admin/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { calendario } from '@/routes/admin';
+import { calendario, estadisticas } from '@/routes/admin';
 import actividad from '@/routes/admin/actividad';
 import multimedia from '@/routes/admin/multimedia';
 import publicaciones from '@/routes/admin/publicaciones';
@@ -45,6 +47,10 @@ const props = defineProps<{
     charts: {
         postsByMonth: { month: string; total: number; published: number }[];
         postsByCategory: { category: string; color: string; total: number }[];
+    };
+    analytics: {
+        summary: { rangeViews: number; uniqueVisitors: number; viewsToday: number; deltaPct: number | null };
+        topPosts: { title: string; slug: string; category: string | null; color: string | null; views: number; uniques: number }[];
     };
     recentPosts: {
         id: number;
@@ -81,6 +87,7 @@ const monthly = computed(() =>
     }),
 );
 const categoryMax = computed(() => Math.max(1, ...props.charts.postsByCategory.map((c) => c.total)));
+const viewedMax = computed(() => Math.max(1, ...props.analytics.topPosts.map((p) => p.views)));
 
 function bytes(n: number): string {
     if (n <= 0) return '0 MB';
@@ -146,6 +153,59 @@ const agenda = computed(() => {
             <StatCard label="Programadas" :value="stats.scheduled" hint="Saldrán solas a su hora" :icon="CalendarClock" tone="warning" :href="calendario().url" />
             <StatCard label="Multimedia" :value="stats.mediaCount" :hint="`${bytes(stats.mediaBytes)} en ${storage.provider}`" :icon="HardDrive" tone="brand" :href="multimedia.index().url" />
         </div>
+
+        <!-- Audiencia: visitas y lo más visto (últimos 30 días) -->
+        <section class="grid gap-4 rounded-xl border bg-card p-5 lg:grid-cols-12">
+            <div class="flex flex-col gap-4 lg:col-span-4">
+                <header class="flex items-center justify-between gap-2">
+                    <h2 class="flex items-center gap-2 text-sm font-semibold"><Eye class="size-4 text-brand" /> Audiencia</h2>
+                    <Link :href="estadisticas()" class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground">
+                        Ver todo <ArrowRight class="size-3.5" />
+                    </Link>
+                </header>
+                <div>
+                    <div class="flex items-end gap-2">
+                        <span class="font-display text-4xl leading-none font-semibold tabular-nums">{{ analytics.summary.rangeViews.toLocaleString('es-MX') }}</span>
+                        <span
+                            v-if="analytics.summary.deltaPct !== null"
+                            class="mb-1 inline-flex items-center gap-0.5 text-xs font-medium"
+                            :class="analytics.summary.deltaPct >= 0 ? 'text-success' : 'text-destructive'"
+                        >
+                            <ArrowUpRight v-if="analytics.summary.deltaPct >= 0" class="size-3.5" />
+                            {{ analytics.summary.deltaPct >= 0 ? '+' : '' }}{{ analytics.summary.deltaPct }}%
+                        </span>
+                    </div>
+                    <p class="mt-1 text-xs text-muted-foreground">Visitas en los últimos 30 días</p>
+                </div>
+                <dl class="grid grid-cols-2 gap-3 text-sm">
+                    <div class="rounded-lg bg-muted/50 p-3">
+                        <dt class="text-xs text-muted-foreground">Visitantes únicos</dt>
+                        <dd class="font-display text-xl font-semibold tabular-nums">{{ analytics.summary.uniqueVisitors.toLocaleString('es-MX') }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-muted/50 p-3">
+                        <dt class="text-xs text-muted-foreground">Visitas hoy</dt>
+                        <dd class="font-display text-xl font-semibold tabular-nums">{{ analytics.summary.viewsToday.toLocaleString('es-MX') }}</dd>
+                    </div>
+                </dl>
+            </div>
+            <div class="lg:col-span-8 lg:border-l lg:pl-6">
+                <h3 class="mb-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Lo más visto</h3>
+                <ol v-if="analytics.topPosts.length" class="flex flex-col gap-2.5">
+                    <li v-for="(p, i) in analytics.topPosts" :key="p.slug" class="flex items-center gap-3">
+                        <span class="w-4 shrink-0 text-center text-xs font-semibold text-muted-foreground tabular-nums">{{ i + 1 }}</span>
+                        <a :href="`/tips/${p.slug}`" target="_blank" rel="noopener" class="min-w-0 flex-1 truncate text-sm font-medium hover:text-brand">{{ p.title }}</a>
+                        <span class="h-1.5 w-28 shrink-0 overflow-hidden rounded-full bg-muted">
+                            <span class="block h-full rounded-full bg-brand/70" :style="{ width: `${(p.views / viewedMax) * 100}%` }" />
+                        </span>
+                        <span class="w-12 shrink-0 text-right text-sm font-semibold tabular-nums">{{ p.views.toLocaleString('es-MX') }}</span>
+                    </li>
+                </ol>
+                <div v-else class="flex h-full min-h-28 flex-col items-center justify-center gap-1.5 text-center">
+                    <Eye class="size-5 text-muted-foreground" />
+                    <p class="text-sm text-muted-foreground">Cuando el sitio reciba visitas, aquí verás los tips más leídos.</p>
+                </div>
+            </div>
+        </section>
 
         <div class="grid gap-4 xl:grid-cols-12">
             <section class="flex flex-col gap-4 rounded-xl border bg-card p-5 xl:col-span-8">

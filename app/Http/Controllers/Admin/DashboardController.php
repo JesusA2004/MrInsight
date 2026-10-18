@@ -9,6 +9,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\StorageProvider;
 use App\Models\StudioPage;
+use App\Services\SiteAnalytics;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
@@ -16,7 +17,7 @@ use Inertia\Response;
 
 class DashboardController extends Controller
 {
-    public function __invoke(): Response
+    public function __invoke(SiteAnalytics $analytics): Response
     {
         $totals = DB::table('posts')
             ->whereNull('deleted_at')
@@ -74,6 +75,10 @@ class DashboardController extends Controller
             'charts' => [
                 'postsByMonth' => $postsByMonth,
                 'postsByCategory' => $postsByCategory,
+            ],
+            'analytics' => [
+                'summary' => $analytics->summary(30),
+                'topPosts' => $analytics->topPosts(30, 5),
             ],
             'recentPosts' => $recentPosts->map(fn (Post $post) => [
                 'id' => $post->id,

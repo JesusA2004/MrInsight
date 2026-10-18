@@ -130,7 +130,7 @@
             "version": 1,
             "description": "Portada de la página: titular, texto, botones y fotografía o video.",
             "slots": {
-                "content": { "label": "Contenido", "accepts": ["eyebrow", "heading", "text", "buttons", "quote", "divider", "spacer", "social-links"] },
+                "content": { "label": "Contenido", "accepts": ["eyebrow", "heading", "text", "buttons", "quote", "divider", "spacer", "social-links", "post-meta", "share"] },
                 "media": { "label": "Multimedia", "accepts": ["image", "video", "quote"] }
             },
             "layouts": {
@@ -193,7 +193,7 @@
                 "layout": { "kind": "layout", "label": "Composición", "default": "cards" },
                 "eyebrow": { "kind": "string", "label": "Antetítulo", "max": 80, "default": "TIPS" },
                 "title": { "kind": "text", "label": "Título", "max": 200, "default": "IDEAS QUE DEJAN HUELLA." },
-                "source": { "kind": "enum", "label": "Origen", "options": { "latest": "Más recientes", "featured": "Destacadas", "category": "De una categoría" }, "default": "latest" },
+                "source": { "kind": "enum", "label": "Origen", "options": { "latest": "Más recientes", "featured": "Destacadas", "category": "De una categoría", "related": "Relacionadas con esta publicación" }, "default": "latest" },
                 "category": { "kind": "category", "label": "Categoría", "default": "", "showWhen": { "source": ["category"] } },
                 "limit": { "kind": "int", "label": "Cantidad", "min": 1, "max": 12, "default": 6 },
                 "showExcerpt": { "kind": "bool", "label": "Mostrar extracto", "default": true },
@@ -239,11 +239,13 @@
                 "layout": { "kind": "layout", "label": "Composición", "default": "grid" },
                 "eyebrow": { "kind": "string", "label": "Antetítulo", "max": 80, "default": "" },
                 "title": { "kind": "text", "label": "Título", "max": 200, "default": "" },
+                "source": { "kind": "enum", "label": "Origen", "options": { "manual": "Fotografías elegidas", "post": "Galería de la publicación" }, "default": "manual" },
                 "items": {
                     "kind": "list",
                     "label": "Fotografías",
                     "max": 30,
                     "itemLabel": "Fotografía",
+                    "showWhen": { "source": ["manual"] },
                     "item": {
                         "media": { "kind": "media", "label": "Imagen", "mediaType": "image", "default": null },
                         "caption": { "kind": "string", "label": "Pie de foto", "max": 200, "default": "" }
@@ -295,7 +297,7 @@
             "version": 1,
             "description": "Bloque de cierre con mensaje y botones.",
             "slots": {
-                "content": { "label": "Contenido", "accepts": ["eyebrow", "heading", "text", "buttons", "quote", "question", "social-links", "spacer"] },
+                "content": { "label": "Contenido", "accepts": ["eyebrow", "heading", "text", "buttons", "quote", "question", "social-links", "spacer", "post-meta", "share"] },
                 "media": { "label": "Multimedia", "accepts": ["image", "video"] }
             },
             "layouts": {
@@ -468,6 +470,26 @@
             "version": 1,
             "props": {
                 "page": { "kind": "page", "label": "Página", "default": "" }
+            },
+            "styleGroups": ["box", "position", "visibility"]
+        },
+        "post-meta": {
+            "label": "Datos de la publicación",
+            "icon": "Info",
+            "version": 1,
+            "props": {
+                "showCategory": { "kind": "bool", "label": "Mostrar categoría", "default": true },
+                "showDate": { "kind": "bool", "label": "Mostrar fecha", "default": true },
+                "showReadingTime": { "kind": "bool", "label": "Mostrar tiempo de lectura", "default": true }
+            },
+            "styleGroups": ["typography", "box", "position", "visibility"]
+        },
+        "share": {
+            "label": "Compartir",
+            "icon": "Share2",
+            "version": 1,
+            "props": {
+                "label": { "kind": "string", "label": "Texto", "max": 40, "default": "Compartir" }
             },
             "styleGroups": ["box", "position", "visibility"]
         }

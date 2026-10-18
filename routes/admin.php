@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\ActivityController;
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\AppearanceController;
 use App\Http\Controllers\Admin\CalendarController;
 use App\Http\Controllers\Admin\CategoryController;
@@ -67,6 +68,8 @@ Route::middleware(['auth', 'verified'])->prefix('admin')->name('admin.')->group(
     Route::put('almacenamiento/{provider}', [StorageController::class, 'update'])->name('almacenamiento.update');
     Route::post('almacenamiento/{provider}/activar', [StorageController::class, 'activate'])->name('almacenamiento.activar');
     Route::post('almacenamiento/{provider}/probar', [StorageController::class, 'test'])->name('almacenamiento.probar');
+
+    Route::get('estadisticas', AnalyticsController::class)->name('estadisticas');
 
     Route::get('actividad', [ActivityController::class, 'index'])->name('actividad.index');
 

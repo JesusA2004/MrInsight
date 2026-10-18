@@ -36,13 +36,32 @@ class StudioResolver
      * @param  array<string, mixed>  $document
      * @return array<string, mixed>
      */
-    public function resolve(array $document, ?string $currentPageKey = null): array
+    public function resolve(array $document, ?string $currentPageKey = null, ?Post $currentPost = null): array
     {
+        // Al renderizar una publicación, la "página actual" es su slug y el
+        // propio post se inyecta como página para que los binds (title/intro/
+        // cover/page-body) funcionen sin cambios en el frontend.
+        if ($currentPost !== null) {
+            $currentPageKey = $currentPost->slug;
+        }
+
         $pageKeys = $this->references->pageKeys($document);
-        if ($currentPageKey !== null && $this->usesCurrentPage($document)) {
+        if ($currentPageKey !== null && $currentPost === null && $this->usesCurrentPage($document)) {
             $pageKeys[] = $currentPageKey;
         }
         $pages = $this->pages(array_values(array_unique($pageKeys)));
+
+        $postObj = null;
+        if ($currentPost !== null) {
+            $pages[$currentPost->slug] = [
+                'key' => $currentPost->slug,
+                'title' => $currentPost->title,
+                'intro' => $currentPost->excerpt,
+                'body' => $currentPost->body,
+                'coverMediaId' => $currentPost->cover_media_id,
+            ];
+            $postObj = $this->post($currentPost);
+        }
 
         $mediaIds = $this->references->mediaIds($document);
         foreach ($pages as $page) {
@@ -58,7 +77,9 @@ class StudioResolver
 
         foreach (($document['sections'] ?? []) as $section) {
             match ($section['type'] ?? null) {
-                'posts' => $feeds[$section['id']] = $this->feed($section['props'] ?? []),
+                'posts' => $feeds[$section['id']] = ($currentPost !== null && ($section['props']['source'] ?? null) === 'related')
+                    ? $this->relatedFeed($currentPost, $section['props'] ?? [])
+                    : $this->feed($section['props'] ?? []),
                 'categories' => $needsCategories = true,
                 'timeline' => ($section['props']['source'] ?? '') === 'entries' && ($section['props']['page'] ?? '') !== ''
                     ? $entryPages[] = $section['props']['page']
@@ -88,7 +109,53 @@ class StudioResolver
             'pages' => (object) $pages,
             'social' => $needsSocial ? $this->social() : [],
             'currentPage' => $currentPageKey,
+            'post' => $postObj,
         ];
+    }
+
+    /**
+     * Metadatos propios de una publicación (categoría, autor, fecha, tiempo de
+     * lectura y galería) que consumen los bloques específicos de tips desde
+     * resolved.post. Solo se incluyen imágenes de galería con URL pública.
+     *
+     * @return array<string, mixed>
+     */
+    private function post(Post $post): array
+    {
+        return [
+            'slug' => $post->slug,
+            'category' => $post->category ? [
+                'name' => $post->category->name,
+                'slug' => $post->category->slug,
+                'color' => $post->category->color,
+            ] : null,
+            'author' => $post->author?->name,
+            'publishedAt' => $post->published_at?->toIso8601String(),
+            'readingMinutes' => $this->presenter->readingMinutes($post),
+            'gallery' => $post->galleryMedia
+                ->map(fn (Media $media) => ['id' => $media->id, 'url' => $media->url(), 'alt' => $media->alt_text])
+                ->filter(fn (array $item) => $item['url'] !== null)
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * Resúmenes de las publicaciones relacionadas con la publicación actual,
+     * usados por las secciones "posts" cuya fuente es "related".
+     *
+     * @param  array<string, mixed>  $props
+     * @return array<int, array<string, mixed>>
+     */
+    private function relatedFeed(Post $post, array $props): array
+    {
+        $limit = max(1, min(12, (int) ($props['limit'] ?? 3)));
+
+        return $post->relatedPosts()
+            ->take($limit)
+            ->map(fn (Post $related) => $this->presenter->summary($related))
+            ->values()
+            ->all();
     }
 
     /**
