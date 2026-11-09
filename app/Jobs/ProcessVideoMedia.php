@@ -9,11 +9,11 @@ use App\Models\Media;
 use App\Models\MediaVariant;
 use App\Services\FfmpegService;
 use App\Services\Storage\StorageHealth;
+use App\Support\MediaPaths;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Throwable;
 
 /**
@@ -71,9 +71,11 @@ class ProcessVideoMedia implements ShouldQueue
 
         $duration = $ffmpeg->durationSeconds($absoluteVideoPath);
 
-        $posterFilename = Str::uuid()->toString().'.jpg';
-        $posterPath = dirname($media->path).'/'.$posterFilename;
+        $posterPath = MediaPaths::variantPath($media->path, 'portada', 'jpg');
         $absolutePosterPath = $disk->path($posterPath);
+        if (! is_dir(dirname($absolutePosterPath))) {
+            @mkdir(dirname($absolutePosterPath), 0775, true);
+        }
 
         $generated = $ffmpeg->generateThumbnail($absoluteVideoPath, $absolutePosterPath);
 

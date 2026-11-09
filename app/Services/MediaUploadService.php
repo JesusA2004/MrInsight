@@ -11,6 +11,7 @@ use App\Models\Media;
 use App\Models\MediaCollection;
 use App\Models\StorageProvider;
 use App\Services\Storage\StorageHealth;
+use App\Support\MediaPaths;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -99,8 +100,7 @@ class MediaUploadService
         $collection = $this->resolveCollection($collectionPath ?? 'mr-insight/general');
         $type = MediaType::fromMime($mimeType);
 
-        $extension = pathinfo($originalFilename, PATHINFO_EXTENSION) ?: 'bin';
-        $filename = Str::uuid()->toString().'.'.$extension;
+        $filename = MediaPaths::uniqueFilename(Storage::disk($disk), $collection->path, $originalFilename);
         $path = $collection->path.'/'.$filename;
 
         $stream = fopen($absoluteTempPath, 'r');

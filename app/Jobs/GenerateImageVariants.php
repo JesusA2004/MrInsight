@@ -7,6 +7,7 @@ use App\Exceptions\StorageUnavailableException;
 use App\Models\Media;
 use App\Models\MediaVariant;
 use App\Services\Storage\StorageHealth;
+use App\Support\MediaPaths;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -46,12 +47,10 @@ class GenerateImageVariants implements ShouldQueue
         $absoluteOriginal = $disk->path($media->path);
 
         $manager = ImageManager::gd();
-        $directory = dirname($media->path);
-        $basename = pathinfo($media->path, PATHINFO_FILENAME);
 
         $image = $manager->read($absoluteOriginal);
 
-        $webpPath = "{$directory}/{$basename}.webp";
+        $webpPath = MediaPaths::variantPath($media->path, '', 'webp');
         $webpEncoded = $image->toWebp(quality: 82);
         $this->write($media->disk, $webpPath, (string) $webpEncoded);
 
@@ -61,7 +60,7 @@ class GenerateImageVariants implements ShouldQueue
         );
 
         $thumbnail = $manager->read($absoluteOriginal)->scaleDown(width: 480);
-        $thumbPath = "{$directory}/{$basename}-thumb.webp";
+        $thumbPath = MediaPaths::variantPath($media->path, 'miniatura', 'webp');
         $thumbEncoded = $thumbnail->toWebp(quality: 75);
         $this->write($media->disk, $thumbPath, (string) $thumbEncoded);
 
