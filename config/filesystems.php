@@ -61,23 +61,34 @@ return [
             'report' => false,
         ],
 
-        // Proveedor Synology NAS, alcanzable únicamente a través de una red
-        // Tailscale privada (ver /docs/SYNOLOGY_TAILSCALE.md). NAS_SFTP_HOST
-        // debe ser el nombre MagicDNS del NAS dentro del tailnet, nunca una
-        // IP pública. Mientras estas variables no existan en .env, este
-        // disco queda definido pero sin credenciales (no se escriben aquí
-        // valores de ejemplo) y el proveedor "synology" permanece inactivo
-        // (ver StorageProviderSeeder).
+        // Proveedor Synology NAS ("SynologyExtra"), alcanzable solo por la
+        // red privada Tailscale (100.67.89.20). El VPS monta el recurso SMB
+        // //100.67.89.20/MrInsight en /mnt/mrinsight-storage vía fstab; las
+        // credenciales SMB viven únicamente en el sistema operativo, nunca
+        // en Laravel ni en la base de datos. Para Laravel es un disco local
+        // cuya raíz es el punto de montaje.
+        //
+        // Antes de escribir, App\Services\Storage\StorageHealth verifica en
+        // la tabla de montajes (mounts_table) que el punto de montaje sea un
+        // CIFS real con el origen mount_source: un directorio vacío (montaje
+        // caído) nunca cuenta como conectado. lazy_root_creation evita que
+        // instanciar el disco cree la carpeta raíz por su cuenta, y throw
+        // hace que cualquier fallo de escritura/lectura sea una excepción.
         'media_synology' => [
-            'driver' => 'sftp',
-            'host' => env('NAS_SFTP_HOST'),
-            'port' => (int) env('NAS_SFTP_PORT', 22),
-            'username' => env('NAS_SFTP_USERNAME'),
-            'password' => env('NAS_SFTP_PASSWORD'),
-            'privateKey' => env('NAS_SFTP_PRIVATE_KEY_PATH'),
-            'root' => env('NAS_SFTP_ROOT', '/mr-insight'),
-            'timeout' => 10,
-            'throw' => false,
+            'driver' => 'local',
+            'root' => env('NAS_MOUNT_PATH', '/mnt/mrinsight-storage'),
+            'url' => '/media',
+            'visibility' => 'private',
+            'lazy_root_creation' => true,
+            'throw' => true,
+            'report' => false,
+            'mount_source' => env('NAS_MOUNT_SOURCE', '//100.67.89.20/MrInsight'),
+            'mount_fstype' => 'cifs',
+            'mounts_table' => env('NAS_MOUNTS_TABLE', '/proc/mounts'),
+            'display_name' => 'SynologyExtra',
+            'display_address' => '100.67.89.20',
+            'display_protocol' => 'SMB/CIFS 3.0',
+            'display_share' => 'MrInsight',
         ],
 
         's3' => [

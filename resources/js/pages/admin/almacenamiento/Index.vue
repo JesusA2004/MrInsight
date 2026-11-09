@@ -1,65 +1,56 @@
 <script setup lang="ts">
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import {
-    CheckCircle2,
-    Circle,
-    Clock,
     Files,
     HardDrive,
+    KeyRound,
     Loader2,
     PlugZap,
     Power,
     Server,
-    ShieldCheck,
-    XCircle,
 } from '@lucide/vue';
 import { computed, ref } from 'vue';
 import { toast } from 'vue-sonner';
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue';
-import FormSection from '@/components/admin/FormSection.vue';
-import StatCard from '@/components/admin/StatCard.vue';
-import InputError from '@/components/InputError.vue';
-import { Badge } from '@/components/ui/badge';
+import AnimatedNumber from '@/components/admin/storage/AnimatedNumber.vue';
+import CapacityGauge from '@/components/admin/storage/CapacityGauge.vue';
+import ConnectionPath from '@/components/admin/storage/ConnectionPath.vue';
+import HealthChecks from '@/components/admin/storage/HealthChecks.vue';
+import HealthPill from '@/components/admin/storage/HealthPill.vue';
+import {
+    formatBytes,
+    formatDate,
+    formatRelative,
+    normalizeChecks,
+    normalizeStatus,
+    STATUS,
+} from '@/components/admin/storage/storage';
+import type {
+    CheckKey,
+    StorageProvider,
+} from '@/components/admin/storage/storage';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import almacenamiento from '@/routes/admin/almacenamiento';
 import type { BreadcrumbItem } from '@/types';
 
-interface TestResult {
-    status: 'ok' | 'error' | 'pending';
-    message: string;
-    connect: boolean;
-    read: boolean;
-    write: boolean;
-    checkedAt: string;
-}
-
-interface Provider {
-    id: number;
-    key: 'local' | 'synology';
-    label: string;
-    isActive: boolean;
-    lastTestedAt: string | null;
-    lastTestResult: TestResult | null;
-    filesCount: number;
-    filesBytes: number;
-    space: { totalBytes: number; freeBytes: number } | null;
-    config: {
-        host: string | null;
-        port: number;
-        username: string | null;
-        authMethod: 'password' | 'private_key';
-        hasPassword: boolean;
-        hasPrivateKey: boolean;
-        transferLimitKbps: number | null;
-        rootPath: string | null;
-    } | null;
-}
-
-const props = defineProps<{ providers: Provider[] }>();
+const props = defineProps<{ providers: StorageProvider[] }>();
 
 defineOptions({
     layout: {
@@ -71,367 +62,853 @@ defineOptions({
 });
 
 const TOUCH = 'pointer-coarse:h-11';
-const TOUCH_SELECT = 'pointer-coarse:data-[size=default]:h-11';
+const PRESS =
+    'transition-[transform,background-color,box-shadow] duration-150 motion-safe:active:scale-[0.97]';
 
-function formatBytes(bytes: number): string {
-    if (bytes <= 0) return '0 B';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    const exp = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-
-    return `${(bytes / 1024 ** exp).toFixed(exp === 0 ? 0 : 1)} ${units[exp]}`;
-}
-
-function formatDate(iso: string | null): string {
-    if (!iso) return 'Nunca';
-
-    return new Intl.DateTimeFormat('es-MX', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(iso));
-}
-
-const DESCRIPTIONS: Record<Provider['key'], string> = {
-    local: 'Los archivos viven en el mismo servidor que el sitio. Es el respaldo siempre disponible.',
-    synology: 'NAS Synology en casa, conectado por SFTP a través de Tailscale. Ideal para videos pesados y respaldos.',
+/** Valores reales del montaje; se usan si el servidor no envía `details`. */
+const NAS_FALLBACK = {
+    name: 'SynologyExtra',
+    address: '100.67.89.20',
+    protocol: 'SMB/CIFS 3.0',
+    share: 'MrInsight',
+    mountPath: '/mnt/mrinsight-storage',
 };
 
-const activeProvider = computed(() => props.providers.find((p) => p.isActive) ?? null);
-const totalFiles = computed(() => props.providers.reduce((sum, p) => sum + p.filesCount, 0));
-const totalBytes = computed(() => props.providers.reduce((sum, p) => sum + p.filesBytes, 0));
-const synologyProviders = computed(() => props.providers.filter((p) => p.key === 'synology'));
+const local = computed(
+    () => props.providers.find((p) => p.key === 'local') ?? null,
+);
+const synology = computed(
+    () => props.providers.find((p) => p.key === 'synology') ?? null,
+);
+const nas = computed(() => ({
+    ...NAS_FALLBACK,
+    ...synology.value?.details,
+}));
 
-/** Estado de conexión legible a partir de la última prueba guardada. */
-function connection(provider: Provider): { label: string; tone: 'success' | 'error' | 'pending' | 'idle'; message: string } {
-    const result = provider.lastTestResult;
-    if (result?.status === 'ok') return { label: 'Conectado', tone: 'success', message: result.message };
-    if (result?.status === 'error') return { label: 'Error de conexión', tone: 'error', message: result.message };
-    if (provider.key === 'synology') {
-        return { label: 'Pendiente', tone: 'pending', message: result?.message ?? 'Synology pendiente de configuración.' };
-    }
+const activeProvider = computed(
+    () => props.providers.find((p) => p.isActive) ?? null,
+);
+const totalFiles = computed(() =>
+    props.providers.reduce((sum, p) => sum + p.filesCount, 0),
+);
+const totalBytes = computed(() =>
+    props.providers.reduce((sum, p) => sum + p.filesBytes, 0),
+);
 
-    return { label: 'Sin probar', tone: 'idle', message: 'Aún no se ha probado la conexión.' };
+/** Reparto de la biblioteca entre proveedores (barra apilada del resumen). */
+const distribution = computed(() =>
+    props.providers.map((p) => ({
+        id: p.id,
+        label: p.label,
+        key: p.key,
+        bytes: p.filesBytes,
+        pct: totalBytes.value > 0 ? (p.filesBytes / totalBytes.value) * 100 : 0,
+    })),
+);
+
+const LOCAL_CHECKS: { key: CheckKey; label: string }[] = [
+    { key: 'write', label: 'Escritura' },
+    { key: 'read', label: 'Lectura' },
+    { key: 'delete', label: 'Eliminación' },
+];
+const nasChecks = computed<{ key: CheckKey; label: string }[]>(() => [
+    { key: 'mounted', label: 'Montaje detectado' },
+    {
+        key: 'source',
+        label: `Origen //${nas.value.address}/${nas.value.share}`,
+    },
+    { key: 'write', label: 'Escritura' },
+    { key: 'read', label: 'Lectura' },
+    { key: 'delete', label: 'Eliminación' },
+]);
+
+function statusOf(provider: StorageProvider) {
+    return normalizeStatus(provider.status ?? provider.lastTestResult?.status);
 }
 
-const TONE_CLASSES = {
-    success: 'border-transparent bg-success/12 text-success',
-    error: 'border-transparent bg-destructive/10 text-destructive',
-    pending: 'border-transparent bg-warning/15 text-warning',
-    idle: 'border-transparent bg-muted text-muted-foreground',
-} as const;
+function activationBlocker(provider: StorageProvider): string {
+    const status = statusOf(provider);
+    if (status === 'untested') return 'Prueba la conexión antes de activarlo.';
 
-function usedPercent(space: { totalBytes: number; freeBytes: number }): number {
-    if (space.totalBytes <= 0) return 0;
-
-    return Math.min(100, Math.max(0, ((space.totalBytes - space.freeBytes) / space.totalBytes) * 100));
-}
-
-function libraryPercent(provider: Provider): number {
-    if (!provider.space || provider.space.totalBytes <= 0) return 0;
-
-    return Math.min(100, (provider.filesBytes / provider.space.totalBytes) * 100);
+    return `Solo se puede activar cuando está «Disponible». Estado actual: ${STATUS[status].label.toLowerCase()}.`;
 }
 
 // ----------------------------------------------------------------- Acciones
 
 const testing = ref<number | null>(null);
-function testProvider(provider: Provider) {
+function testProvider(provider: StorageProvider) {
+    if (testing.value !== null) return;
     testing.value = provider.id;
-    router.post(almacenamiento.probar(provider.id).url, {}, {
-        preserveScroll: true,
-        onSuccess: () => {
-            const result = props.providers.find((p) => p.id === provider.id)?.lastTestResult;
-            if (!result) return;
-            if (result.status === 'ok') toast.success(result.message);
-            else if (result.status === 'pending') toast.warning(result.message);
-            else toast.error(result.message);
+    router.post(
+        almacenamiento.probar(provider.id).url,
+        {},
+        {
+            preserveScroll: true,
+            onError: () =>
+                toast.error('No se pudo ejecutar la prueba. Intenta de nuevo.'),
+            onFinish: () => (testing.value = null),
         },
-        onError: () => {
-            toast.error('No se pudo ejecutar la prueba de conexión.');
-        },
-        onFinish: () => (testing.value = null),
-    });
+    );
 }
 
+const pendingActivation = ref<StorageProvider | null>(null);
 const activating = ref<number | null>(null);
-function activateProvider(provider: Provider) {
+function confirmActivation() {
+    const provider = pendingActivation.value;
+    if (!provider) return;
     activating.value = provider.id;
-    router.post(almacenamiento.activar(provider.id).url, {}, {
-        preserveScroll: true,
-        onError: () => {
-            toast.error('No se pudo activar el proveedor.');
+    router.post(
+        almacenamiento.activar(provider.id).url,
+        {},
+        {
+            preserveScroll: true,
+            onError: () => toast.error('No se pudo activar el proveedor.'),
+            onFinish: () => {
+                activating.value = null;
+                pendingActivation.value = null;
+            },
         },
-        onFinish: () => (activating.value = null),
-    });
+    );
 }
 
-const synologyForms = new Map<number, ReturnType<typeof useForm>>();
-function synologyForm(provider: Provider) {
-    if (!synologyForms.has(provider.id)) {
-        synologyForms.set(
-            provider.id,
-            useForm({
-                host: provider.config?.host ?? '',
-                port: provider.config?.port ?? 22,
-                username: provider.config?.username ?? '',
-                auth_method: provider.config?.authMethod ?? 'password',
-                password: '',
-                private_key_path: '',
-                transfer_limit_kbps: provider.config?.transferLimitKbps ?? null,
-            }),
-        );
-    }
-
-    return synologyForms.get(provider.id)!;
+/** Entrada escalonada: un solo momento orquestado al cargar la página. */
+function enter(step: number) {
+    return { animationDelay: `${step * 90}ms` };
 }
-
-function saveSynology(provider: Provider) {
-    const form = synologyForm(provider);
-    form.put(almacenamiento.update(provider.id).url, {
-        preserveScroll: true,
-        onSuccess: () => {
-            form.password = '';
-            form.private_key_path = '';
-        },
-        onError: () => {
-            toast.error('Revisa los campos marcados.');
-        },
-    });
-}
+const ENTER =
+    'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-3 motion-safe:duration-700 [animation-fill-mode:backwards]';
 </script>
 
 <template>
     <Head title="Almacenamiento" />
 
-    <div class="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
-        <AdminPageHeader
-            eyebrow="Sistema"
-            title="Almacenamiento"
-            description="Dónde se guardan las fotografías y videos de la biblioteca. Los archivos nuevos se suben al proveedor activo; los existentes se quedan donde están."
-        />
+    <TooltipProvider :delay-duration="200">
+        <div class="flex flex-1 flex-col gap-6 p-4 md:p-6 lg:p-8">
+            <AdminPageHeader
+                eyebrow="Sistema"
+                title="Almacenamiento"
+                description="Dónde se guardan las fotografías y videos de la biblioteca. Las subidas nuevas van al proveedor activo; los archivos existentes se quedan donde están."
+            />
 
-        <div class="grid gap-4 sm:grid-cols-3">
-            <StatCard label="Proveedor activo" :value="activeProvider?.label ?? 'Ninguno'" :icon="Power" tone="brand" hint="Recibe las subidas nuevas" />
-            <StatCard label="Archivos en la biblioteca" :value="totalFiles" :icon="Files" />
-            <StatCard label="Espacio ocupado por la biblioteca" :value="formatBytes(totalBytes)" :icon="HardDrive" />
-        </div>
-
-        <div class="grid gap-4 lg:grid-cols-2">
-            <article
-                v-for="provider in props.providers"
-                :key="provider.id"
-                :class="cn('flex flex-col gap-5 rounded-xl border bg-card p-5', provider.isActive && 'border-brand/60 ring-1 ring-brand/30')"
+            <!-- Resumen -->
+            <section
+                :class="cn('overflow-hidden rounded-xl border bg-card', ENTER)"
+                :style="enter(0)"
+                aria-label="Resumen de almacenamiento"
             >
-                <header class="flex items-start gap-3">
-                    <span class="grid size-10 shrink-0 place-items-center rounded-lg" :class="provider.isActive ? 'bg-brand/15 text-brand' : 'bg-muted text-muted-foreground'">
-                        <component :is="provider.key === 'local' ? HardDrive : Server" class="size-5" />
-                    </span>
-                    <div class="min-w-0 flex-1">
-                        <div class="flex flex-wrap items-center gap-2">
-                            <h2 class="text-base font-semibold">{{ provider.label }}</h2>
-                            <Badge v-if="provider.isActive" variant="outline" :class="TONE_CLASSES.success">
-                                <CheckCircle2 /> Activo
-                            </Badge>
-                            <Badge v-else variant="outline" :class="TONE_CLASSES.idle">Inactivo</Badge>
-                        </div>
-                        <p class="mt-1 text-sm text-muted-foreground">{{ DESCRIPTIONS[provider.key] }}</p>
-                    </div>
-                </header>
-
-                <!-- Estado de conexión -->
-                <section class="rounded-lg border p-3" :aria-label="`Conexión de ${provider.label}`" aria-live="polite">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" :class="TONE_CLASSES[connection(provider).tone]">
-                            <CheckCircle2 v-if="connection(provider).tone === 'success'" />
-                            <XCircle v-else-if="connection(provider).tone === 'error'" />
-                            <Clock v-else-if="connection(provider).tone === 'pending'" />
-                            <Circle v-else />
-                            {{ connection(provider).label }}
-                        </Badge>
-                        <span class="text-xs text-muted-foreground">Última verificación: {{ formatDate(provider.lastTestedAt) }}</span>
-                    </div>
-                    <p class="mt-2 text-sm">{{ connection(provider).message }}</p>
-                    <ul v-if="provider.lastTestResult && provider.lastTestResult.status !== 'pending'" class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs">
-                        <li
-                            v-for="check in [
-                                { k: 'connect', l: 'Conexión' },
-                                { k: 'read', l: 'Lectura' },
-                                { k: 'write', l: 'Escritura' },
-                            ] as const"
-                            :key="check.k"
-                            class="inline-flex items-center gap-1.5"
-                            :class="provider.lastTestResult[check.k] ? 'text-success' : 'text-destructive'"
+                <div
+                    class="grid divide-y sm:grid-cols-[1.3fr_1fr_1fr] sm:divide-x sm:divide-y-0"
+                >
+                    <div class="flex flex-col gap-3 p-5">
+                        <span class="text-xs font-medium text-muted-foreground"
+                            >Proveedor activo</span
                         >
-                            <CheckCircle2 v-if="provider.lastTestResult[check.k]" class="size-3.5" />
-                            <XCircle v-else class="size-3.5" />
-                            {{ check.l }}
+                        <Transition
+                            mode="out-in"
+                            enter-active-class="transition duration-400 ease-[var(--ease-editorial)]"
+                            enter-from-class="opacity-0 translate-y-2"
+                            leave-active-class="transition duration-150"
+                            leave-to-class="opacity-0 -translate-y-2"
+                        >
+                            <div
+                                :key="activeProvider?.id ?? 'none'"
+                                class="flex flex-wrap items-center gap-3"
+                            >
+                                <span
+                                    class="active-chip inline-flex items-center gap-2.5 rounded-full py-1.5 pr-3.5 pl-2"
+                                >
+                                    <span
+                                        class="grid size-7 place-items-center rounded-full bg-brand/15 text-brand"
+                                    >
+                                        <component
+                                            :is="
+                                                activeProvider?.key ===
+                                                'synology'
+                                                    ? Server
+                                                    : HardDrive
+                                            "
+                                            class="size-3.5"
+                                        />
+                                    </span>
+                                    <span
+                                        class="font-display text-xl leading-none font-semibold"
+                                        >{{
+                                            activeProvider?.label ?? 'Ninguno'
+                                        }}</span
+                                    >
+                                </span>
+                            </div>
+                        </Transition>
+                        <p class="text-xs text-muted-foreground">
+                            Recibe las subidas nuevas.
+                        </p>
+                    </div>
+                    <div class="flex flex-col gap-3 p-5">
+                        <span
+                            class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+                            ><Files class="size-3.5" /> Archivos en la
+                            biblioteca</span
+                        >
+                        <p
+                            class="font-display text-3xl leading-none font-semibold"
+                        >
+                            <AnimatedNumber :value="totalFiles" :delay="150" />
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                            Fotografías y videos de todos los proveedores.
+                        </p>
+                    </div>
+                    <div class="flex flex-col gap-3 p-5">
+                        <span
+                            class="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"
+                            ><HardDrive class="size-3.5" /> Espacio de la
+                            biblioteca</span
+                        >
+                        <p
+                            class="font-display text-3xl leading-none font-semibold"
+                        >
+                            <AnimatedNumber
+                                :value="totalBytes"
+                                :format="formatBytes"
+                                :delay="250"
+                            />
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                            Suma de lo guardado en cada proveedor.
+                        </p>
+                    </div>
+                </div>
+
+                <div v-if="totalBytes > 0" class="border-t px-5 py-3">
+                    <div
+                        class="flex h-1.5 w-full gap-0.5 overflow-hidden rounded-full bg-muted"
+                        role="img"
+                        :aria-label="
+                            distribution
+                                .map(
+                                    (d) => `${d.label}: ${Math.round(d.pct)} %`,
+                                )
+                                .join(', ')
+                        "
+                    >
+                        <span
+                            v-for="(d, i) in distribution"
+                            :key="d.id"
+                            class="grow-bar h-full rounded-full"
+                            :class="
+                                d.key === 'synology'
+                                    ? 'bg-brand'
+                                    : 'bg-foreground/70'
+                            "
+                            :style="{
+                                width: `${d.pct}%`,
+                                animationDelay: `${300 + i * 120}ms`,
+                            }"
+                        />
+                    </div>
+                    <ul
+                        class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[11px] text-muted-foreground"
+                    >
+                        <li
+                            v-for="d in distribution"
+                            :key="d.id"
+                            class="inline-flex items-center gap-1.5"
+                        >
+                            <span
+                                class="size-2 rounded-full"
+                                :class="
+                                    d.key === 'synology'
+                                        ? 'bg-brand'
+                                        : 'bg-foreground/70'
+                                "
+                            />
+                            {{ d.label }}
+                            <span class="tabular-nums">{{
+                                formatBytes(d.bytes)
+                            }}</span>
                         </li>
                     </ul>
-                </section>
+                </div>
+            </section>
 
-                <!-- Uso -->
-                <section class="flex flex-col gap-2" :aria-label="`Uso de ${provider.label}`">
-                    <div class="flex items-baseline justify-between gap-3 text-sm">
-                        <span><span class="font-semibold tabular-nums">{{ provider.filesCount }}</span> archivos</span>
-                        <span class="text-muted-foreground tabular-nums">{{ formatBytes(provider.filesBytes) }}</span>
-                    </div>
-                    <template v-if="provider.space">
-                        <div
-                            class="relative h-2.5 w-full overflow-hidden rounded-full bg-muted"
-                            role="meter"
-                            :aria-label="`Disco ocupado en ${provider.label}`"
-                            aria-valuemin="0"
-                            aria-valuemax="100"
-                            :aria-valuenow="Math.round(usedPercent(provider.space))"
+            <div class="grid items-start gap-5 lg:grid-cols-12">
+                <!-- Local -->
+                <article
+                    v-if="local"
+                    :class="
+                        cn(
+                            'provider-card flex flex-col gap-5 rounded-xl border bg-card p-5 lg:col-span-5',
+                            ENTER,
+                            local.isActive && 'is-active',
+                        )
+                    "
+                    :style="enter(1)"
+                    :aria-busy="testing === local.id"
+                >
+                    <header class="flex items-start gap-3">
+                        <span
+                            class="grid size-11 shrink-0 place-items-center rounded-xl"
+                            :class="
+                                local.isActive
+                                    ? 'bg-brand/15 text-brand'
+                                    : 'bg-muted text-muted-foreground'
+                            "
                         >
-                            <div class="absolute inset-y-0 left-0 rounded-full bg-foreground/25" :style="{ width: `${usedPercent(provider.space)}%` }" />
-                            <div class="absolute inset-y-0 left-0 rounded-full bg-brand" :style="{ width: `${Math.max(libraryPercent(provider), provider.filesBytes > 0 ? 0.5 : 0)}%` }" />
+                            <HardDrive class="size-5" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2
+                                    class="font-display text-lg leading-tight font-semibold"
+                                >
+                                    {{ local.label }}
+                                </h2>
+                                <span
+                                    v-if="local.isActive"
+                                    class="active-chip inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-semibold"
+                                    >Activo</span
+                                >
+                                <span
+                                    v-else
+                                    class="inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-[11px] font-semibold text-muted-foreground"
+                                    >Inactivo</span
+                                >
+                            </div>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                Disco del mismo servidor que el sitio. Es el
+                                respaldo siempre disponible.
+                            </p>
                         </div>
-                        <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                            <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-brand" /> Biblioteca</span>
-                            <span class="inline-flex items-center gap-1.5"><span class="size-2 rounded-full bg-foreground/25" /> Otros datos del disco</span>
-                            <span class="tabular-nums">
-                                {{ formatBytes(provider.space.totalBytes - provider.space.freeBytes) }} usados de {{ formatBytes(provider.space.totalBytes) }}
-                                · {{ formatBytes(provider.space.freeBytes) }} libres
-                            </span>
+                    </header>
+
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-2"
+                        aria-live="polite"
+                    >
+                        <HealthPill
+                            :status="statusOf(local)"
+                            :testing="testing === local.id"
+                        />
+                        <span
+                            class="text-xs text-muted-foreground"
+                            :title="formatDate(local.lastTestedAt)"
+                            >{{ formatRelative(local.lastTestedAt) }}</span
+                        >
+                    </div>
+
+                    <CapacityGauge
+                        :space="local.space"
+                        :library-bytes="local.filesBytes"
+                        label="Capacidad del VPS"
+                        :delay="250"
+                    >
+                        <template #caption>
+                            <p class="mb-2 text-sm font-semibold">
+                                Capacidad del VPS
+                            </p>
+                        </template>
+                        <template #empty>
+                            <p class="text-sm text-muted-foreground">
+                                El servidor no reportó la capacidad del disco.
+                            </p>
+                        </template>
+                    </CapacityGauge>
+
+                    <dl class="grid grid-cols-2 gap-3">
+                        <div class="rounded-lg bg-surface-raised p-3">
+                            <dt class="text-xs text-muted-foreground">
+                                Archivos guardados
+                            </dt>
+                            <dd
+                                class="mt-1 font-display text-2xl leading-none font-semibold"
+                            >
+                                <AnimatedNumber
+                                    :value="local.filesCount"
+                                    :delay="300"
+                                />
+                            </dd>
                         </div>
-                    </template>
-                    <p v-else class="text-xs text-muted-foreground">La capacidad del disco se mostrará cuando el proveedor esté conectado.</p>
-                </section>
+                        <div class="rounded-lg bg-surface-raised p-3">
+                            <dt class="text-xs text-muted-foreground">
+                                Ocupa la biblioteca
+                            </dt>
+                            <dd
+                                class="mt-1 font-display text-2xl leading-none font-semibold"
+                            >
+                                <AnimatedNumber
+                                    :value="local.filesBytes"
+                                    :format="formatBytes"
+                                    :delay="300"
+                                />
+                            </dd>
+                        </div>
+                    </dl>
 
-                <footer class="mt-auto flex flex-wrap items-center gap-2 border-t pt-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        :class="TOUCH"
-                        :disabled="testing === provider.id"
-                        :aria-busy="testing === provider.id"
-                        @click="testProvider(provider)"
+                    <HealthChecks
+                        v-if="
+                            normalizeChecks(local.lastTestResult) ||
+                            testing === local.id
+                        "
+                        :checks="normalizeChecks(local.lastTestResult)"
+                        :items="LOCAL_CHECKS"
+                        :testing="testing === local.id"
+                        :revision="local.lastTestResult?.checkedAt"
+                    />
+
+                    <Transition
+                        mode="out-in"
+                        enter-active-class="transition duration-300"
+                        enter-from-class="opacity-0"
+                        leave-active-class="transition duration-150"
+                        leave-to-class="opacity-0"
                     >
-                        <Loader2 v-if="testing === provider.id" class="size-4 animate-spin" />
-                        <PlugZap v-else class="size-4" />
-                        {{ testing === provider.id ? 'Probando…' : 'Probar conexión' }}
-                    </Button>
-                    <Button
-                        v-if="!provider.isActive"
-                        variant="secondary"
-                        size="sm"
-                        :class="TOUCH"
-                        :disabled="activating === provider.id"
-                        @click="activateProvider(provider)"
-                    >
-                        <Loader2 v-if="activating === provider.id" class="size-4 animate-spin" />
-                        <Power v-else class="size-4" />
-                        Activar proveedor
-                    </Button>
-                    <span v-else class="text-xs text-muted-foreground">Las subidas nuevas se guardan aquí.</span>
-                </footer>
-            </article>
-        </div>
-
-        <!-- Configuración de Synology -->
-        <section v-for="provider in synologyProviders" :key="`cfg-${provider.id}`" class="rounded-xl border bg-card px-5">
-            <FormSection
-                title="Conexión con Synology"
-                description="Datos del NAS dentro de tu red Tailscale. Las credenciales se guardan cifradas en el servidor y nunca se muestran de nuevo."
-            >
-                <template #aside>
-                    <p class="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground">
-                        <ShieldCheck class="mt-px size-3.5 shrink-0 text-success" />
-                        Guarda y después usa «Probar conexión» para verificar lectura y escritura.
-                    </p>
-                </template>
-
-                <form class="grid gap-4 sm:grid-cols-6" @submit.prevent="saveSynology(provider)">
-                    <div class="grid gap-1.5 sm:col-span-4">
-                        <Label :for="`nas-host-${provider.id}`">Host (Tailscale)</Label>
-                        <Input :id="`nas-host-${provider.id}`" v-model="synologyForm(provider).host" :class="TOUCH" placeholder="nas.tailnet.ts.net" autocomplete="off" />
-                        <InputError :message="synologyForm(provider).errors.host" />
-                    </div>
-                    <div class="grid gap-1.5 sm:col-span-2">
-                        <Label :for="`nas-port-${provider.id}`">Puerto</Label>
-                        <Input :id="`nas-port-${provider.id}`" v-model="synologyForm(provider).port" type="number" :class="TOUCH" />
-                        <InputError :message="synologyForm(provider).errors.port" />
-                    </div>
-                    <div class="grid gap-1.5 sm:col-span-3">
-                        <Label :for="`nas-user-${provider.id}`">Usuario</Label>
-                        <Input :id="`nas-user-${provider.id}`" v-model="synologyForm(provider).username" :class="TOUCH" autocomplete="off" />
-                        <InputError :message="synologyForm(provider).errors.username" />
-                    </div>
-                    <div class="grid gap-1.5 sm:col-span-3">
-                        <Label :for="`nas-auth-${provider.id}`">Autenticación</Label>
-                        <Select v-model="synologyForm(provider).auth_method">
-                            <SelectTrigger :id="`nas-auth-${provider.id}`" :class="cn('w-full', TOUCH_SELECT)"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="password">Contraseña</SelectItem>
-                                <SelectItem value="private_key">Llave privada</SelectItem>
-                            </SelectContent>
-                        </Select>
-                        <InputError :message="synologyForm(provider).errors.auth_method" />
-                    </div>
-                    <div v-if="synologyForm(provider).auth_method === 'password'" class="grid gap-1.5 sm:col-span-6">
-                        <Label :for="`nas-pass-${provider.id}`">Contraseña</Label>
-                        <Input
-                            :id="`nas-pass-${provider.id}`"
-                            v-model="synologyForm(provider).password"
-                            type="password"
-                            autocomplete="new-password"
-                            :class="TOUCH"
-                            :placeholder="provider.config?.hasPassword ? '••••••••  (guardada)' : ''"
-                        />
-                        <p v-if="provider.config?.hasPassword" class="text-xs text-muted-foreground">Ya hay una contraseña guardada. Déjalo en blanco para conservarla.</p>
-                        <InputError :message="synologyForm(provider).errors.password" />
-                    </div>
-                    <div v-else class="grid gap-1.5 sm:col-span-6">
-                        <Label :for="`nas-key-${provider.id}`">Ruta de la llave privada en el servidor</Label>
-                        <Input
-                            :id="`nas-key-${provider.id}`"
-                            v-model="synologyForm(provider).private_key_path"
-                            :class="TOUCH"
-                            placeholder="/etc/mrinsight/nas_id_ed25519"
-                            autocomplete="off"
-                        />
-                        <p class="text-xs text-muted-foreground">
-                            {{ provider.config?.hasPrivateKey ? 'Ya hay una llave guardada. Déjalo en blanco para conservarla.' : 'Ruta absoluta del archivo de llave en el servidor web.' }}
+                        <p
+                            v-if="local.lastTestResult?.message"
+                            :key="local.lastTestResult.checkedAt"
+                            class="text-sm text-muted-foreground"
+                            aria-live="polite"
+                        >
+                            {{ local.lastTestResult.message }}
                         </p>
-                        <InputError :message="synologyForm(provider).errors.private_key_path" />
-                    </div>
-                    <div class="grid gap-1.5 sm:col-span-3">
-                        <Label :for="`nas-limit-${provider.id}`">Límite de transferencia (KB/s)</Label>
-                        <Input
-                            :id="`nas-limit-${provider.id}`"
-                            v-model="synologyForm(provider).transfer_limit_kbps"
-                            type="number"
-                            :class="TOUCH"
-                            placeholder="Sin límite"
-                        />
-                        <p class="text-xs text-muted-foreground">Útil para no saturar el internet de casa. Ej.: 2048.</p>
-                        <InputError :message="synologyForm(provider).errors.transfer_limit_kbps" />
-                    </div>
-                    <div class="grid gap-1.5 sm:col-span-3">
-                        <span class="text-sm font-medium">Carpeta raíz autorizada</span>
-                        <code class="rounded-md bg-muted px-2.5 py-2 text-xs break-all">{{ provider.config?.rootPath ?? 'Sin definir' }}</code>
-                        <p class="text-xs text-muted-foreground">Se define en las variables de entorno del servidor, no desde aquí.</p>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2 sm:col-span-6">
-                        <Button type="submit" :class="TOUCH" :disabled="synologyForm(provider).processing" :aria-busy="synologyForm(provider).processing">
-                            <Loader2 v-if="synologyForm(provider).processing" class="size-4 animate-spin" />
-                            Guardar configuración
+                    </Transition>
+
+                    <footer
+                        class="mt-auto flex flex-wrap items-center gap-2 border-t pt-4"
+                    >
+                        <Button
+                            variant="outline"
+                            :class="cn(TOUCH, PRESS)"
+                            :disabled="testing !== null"
+                            :aria-busy="testing === local.id"
+                            @click="testProvider(local)"
+                        >
+                            <Loader2
+                                v-if="testing === local.id"
+                                class="size-4 motion-safe:animate-spin"
+                            />
+                            <PlugZap v-else class="size-4" />
+                            {{ testing === local.id ? 'Probando…' : 'Probar' }}
                         </Button>
                         <Button
-                            type="button"
-                            variant="outline"
-                            :class="TOUCH"
-                            :disabled="testing === provider.id || synologyForm(provider).isDirty"
-                            :title="synologyForm(provider).isDirty ? 'Guarda los cambios antes de probar' : undefined"
-                            @click="testProvider(provider)"
+                            v-if="!local.isActive"
+                            variant="secondary"
+                            :class="cn(TOUCH, PRESS)"
+                            :disabled="
+                                !local.canActivate || activating !== null
+                            "
+                            @click="pendingActivation = local"
                         >
-                            <Loader2 v-if="testing === provider.id" class="size-4 animate-spin" />
-                            <PlugZap v-else class="size-4" />
-                            Probar conexión
+                            <Power class="size-4" />
+                            Activar proveedor
                         </Button>
-                        <span v-if="synologyForm(provider).recentlySuccessful" class="inline-flex items-center gap-1.5 text-xs text-success" role="status">
-                            <CheckCircle2 class="size-3.5" /> Guardado
+                        <span v-else class="text-xs text-muted-foreground"
+                            >Las subidas nuevas se guardan aquí.</span
+                        >
+                        <p
+                            v-if="!local.isActive && !local.canActivate"
+                            class="w-full text-xs text-muted-foreground"
+                        >
+                            {{ activationBlocker(local) }}
+                        </p>
+                    </footer>
+                </article>
+
+                <!-- Synology -->
+                <article
+                    v-if="synology"
+                    :class="
+                        cn(
+                            'provider-card flex flex-col gap-5 rounded-xl border bg-card p-5 lg:col-span-7',
+                            ENTER,
+                            synology.isActive && 'is-active',
+                        )
+                    "
+                    :style="enter(2)"
+                    :aria-busy="testing === synology.id"
+                >
+                    <header class="flex items-start gap-3">
+                        <span
+                            class="grid size-11 shrink-0 place-items-center rounded-xl"
+                            :class="
+                                synology.isActive
+                                    ? 'bg-brand/15 text-brand'
+                                    : 'bg-muted text-muted-foreground'
+                            "
+                        >
+                            <Server class="size-5" />
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <div class="flex flex-wrap items-center gap-2">
+                                <h2
+                                    class="font-display text-lg leading-tight font-semibold"
+                                >
+                                    {{ synology.label }}
+                                </h2>
+                                <span
+                                    v-if="synology.isActive"
+                                    class="active-chip inline-flex h-6 items-center rounded-full px-2.5 text-[11px] font-semibold"
+                                    >Activo</span
+                                >
+                                <span
+                                    v-else
+                                    class="inline-flex h-6 items-center rounded-full bg-muted px-2.5 text-[11px] font-semibold text-muted-foreground"
+                                    >Inactivo</span
+                                >
+                            </div>
+                            <p class="mt-1 text-sm text-muted-foreground">
+                                NAS {{ nas.name }} montado en el servidor por
+                                {{ nas.protocol }} a través de Tailscale. Ideal
+                                para videos pesados.
+                            </p>
+                        </div>
+                    </header>
+
+                    <div
+                        class="flex flex-wrap items-center justify-between gap-2"
+                        aria-live="polite"
+                    >
+                        <HealthPill
+                            :status="statusOf(synology)"
+                            :testing="testing === synology.id"
+                        />
+                        <span class="text-xs text-muted-foreground">
+                            Última prueba:
+                            <time
+                                :datetime="synology.lastTestedAt ?? undefined"
+                                :title="formatRelative(synology.lastTestedAt)"
+                                class="font-medium text-foreground"
+                            >
+                                {{ formatDate(synology.lastTestedAt) }}
+                            </time>
                         </span>
                     </div>
-                </form>
-            </FormSection>
-        </section>
-    </div>
+
+                    <ConnectionPath
+                        :status="statusOf(synology)"
+                        :testing="testing === synology.id"
+                        :address="nas.address"
+                        :nas-name="nas.name"
+                    />
+
+                    <div class="grid gap-5 md:grid-cols-2">
+                        <dl class="grid content-start gap-x-4 gap-y-3 text-sm">
+                            <div>
+                                <dt class="text-xs text-muted-foreground">
+                                    Nombre
+                                </dt>
+                                <dd class="font-medium">{{ nas.name }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-muted-foreground">
+                                    Dirección Tailscale
+                                </dt>
+                                <dd class="font-medium tabular-nums">
+                                    {{ nas.address }}
+                                </dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-muted-foreground">
+                                    Protocolo
+                                </dt>
+                                <dd class="font-medium">{{ nas.protocol }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-muted-foreground">
+                                    Carpeta compartida
+                                </dt>
+                                <dd class="font-medium">{{ nas.share }}</dd>
+                            </div>
+                            <div>
+                                <dt class="text-xs text-muted-foreground">
+                                    Punto de montaje
+                                </dt>
+                                <dd>
+                                    <code
+                                        class="rounded bg-muted px-1.5 py-0.5 text-xs break-all"
+                                        >{{ nas.mountPath }}</code
+                                    >
+                                </dd>
+                            </div>
+                        </dl>
+
+                        <CapacityGauge
+                            :space="synology.space"
+                            :library-bytes="synology.filesBytes"
+                            label="Capacidad del NAS"
+                            :delay="400"
+                        >
+                            <template #caption>
+                                <p class="mb-2 text-sm font-semibold">
+                                    Capacidad del NAS
+                                </p>
+                            </template>
+                            <template #empty>
+                                <p class="text-sm font-medium text-destructive">
+                                    Sin datos — NAS desconectado
+                                </p>
+                                <p class="mt-1 text-xs text-muted-foreground">
+                                    La capacidad aparece cuando el servidor
+                                    vuelve a ver el montaje.
+                                </p>
+                            </template>
+                        </CapacityGauge>
+                    </div>
+
+                    <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                        <span
+                            ><span class="font-semibold"
+                                ><AnimatedNumber
+                                    :value="synology.filesCount"
+                                    :delay="350"
+                            /></span>
+                            <span class="text-muted-foreground"
+                                >archivos guardados</span
+                            ></span
+                        >
+                        <span
+                            ><span class="font-semibold"
+                                ><AnimatedNumber
+                                    :value="synology.filesBytes"
+                                    :format="formatBytes"
+                                    :delay="350"
+                            /></span>
+                            <span class="text-muted-foreground"
+                                >ocupa la biblioteca</span
+                            ></span
+                        >
+                    </div>
+
+                    <HealthChecks
+                        :checks="normalizeChecks(synology.lastTestResult)"
+                        :items="nasChecks"
+                        :testing="testing === synology.id"
+                        :revision="synology.lastTestResult?.checkedAt"
+                    />
+
+                    <Transition
+                        mode="out-in"
+                        enter-active-class="transition duration-300"
+                        enter-from-class="opacity-0"
+                        leave-active-class="transition duration-150"
+                        leave-to-class="opacity-0"
+                    >
+                        <p
+                            :key="synology.lastTestResult?.checkedAt ?? 'none'"
+                            class="text-sm text-muted-foreground"
+                            aria-live="polite"
+                        >
+                            {{
+                                synology.lastTestResult?.message ??
+                                STATUS[statusOf(synology)].hint
+                            }}
+                        </p>
+                    </Transition>
+
+                    <footer
+                        class="mt-auto flex flex-col gap-3 border-t pt-4 sm:flex-row sm:flex-wrap sm:items-center"
+                    >
+                        <Button
+                            variant="outline"
+                            :class="cn(TOUCH, PRESS)"
+                            :disabled="testing !== null"
+                            :aria-busy="testing === synology.id"
+                            @click="testProvider(synology)"
+                        >
+                            <Loader2
+                                v-if="testing === synology.id"
+                                class="size-4 motion-safe:animate-spin"
+                            />
+                            <PlugZap v-else class="size-4" />
+                            {{
+                                testing === synology.id
+                                    ? 'Probando conexión…'
+                                    : 'Probar conexión'
+                            }}
+                        </Button>
+
+                        <template v-if="!synology.isActive">
+                            <Button
+                                v-if="synology.canActivate"
+                                :class="cn(TOUCH, PRESS)"
+                                :disabled="activating !== null"
+                                @click="pendingActivation = synology"
+                            >
+                                <Power class="size-4" />
+                                Activar proveedor
+                            </Button>
+                            <Tooltip v-else>
+                                <TooltipTrigger as-child>
+                                    <span
+                                        tabindex="0"
+                                        class="inline-flex rounded-md"
+                                        :aria-describedby="`nas-blocker-${synology.id}`"
+                                    >
+                                        <Button
+                                            :class="TOUCH"
+                                            disabled
+                                            tabindex="-1"
+                                        >
+                                            <Power class="size-4" />
+                                            Activar proveedor
+                                        </Button>
+                                    </span>
+                                </TooltipTrigger>
+                                <TooltipContent class="max-w-64">{{
+                                    activationBlocker(synology)
+                                }}</TooltipContent>
+                            </Tooltip>
+                            <p
+                                v-if="!synology.canActivate"
+                                :id="`nas-blocker-${synology.id}`"
+                                class="text-xs text-muted-foreground sm:max-w-64"
+                            >
+                                {{ activationBlocker(synology) }}
+                            </p>
+                        </template>
+                        <span v-else class="text-xs text-muted-foreground"
+                            >Las subidas nuevas se guardan en el NAS.</span
+                        >
+                    </footer>
+                </article>
+            </div>
+
+            <p
+                :class="
+                    cn(
+                        'flex items-start gap-2.5 rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground',
+                        ENTER,
+                    )
+                "
+                :style="enter(3)"
+            >
+                <KeyRound
+                    class="mt-0.5 size-4 shrink-0 text-brand"
+                    aria-hidden="true"
+                />
+                Las credenciales SMB se administran desde el servidor Linux;
+                este panel no las almacena.
+            </p>
+        </div>
+    </TooltipProvider>
+
+    <AlertDialog
+        :open="pendingActivation !== null"
+        @update:open="
+            (v: boolean) =>
+                !v && activating === null && (pendingActivation = null)
+        "
+    >
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle
+                    >¿Activar {{ pendingActivation?.label }}?</AlertDialogTitle
+                >
+                <AlertDialogDescription
+                    v-if="pendingActivation?.key === 'synology'"
+                >
+                    Las subidas nuevas se guardarán en el NAS {{ nas.name }}.
+                    Los archivos que ya existen no se mueven: seguirán en el
+                    almacenamiento local y se servirán desde ahí.
+                </AlertDialogDescription>
+                <AlertDialogDescription v-else>
+                    Las subidas nuevas se guardarán en el disco del servidor.
+                    Los archivos que ya están en el NAS no se mueven y seguirán
+                    sirviéndose desde ahí.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel :disabled="activating !== null"
+                    >Cancelar</AlertDialogCancel
+                >
+                <AlertDialogAction
+                    :disabled="activating !== null"
+                    @click.prevent="confirmActivation"
+                >
+                    <Loader2
+                        v-if="activating !== null"
+                        class="size-4 motion-safe:animate-spin"
+                    />
+                    Activar proveedor
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
 </template>
+
+<style scoped>
+/* Tarjeta de proveedor: se eleva al pasar el cursor; la activa lleva filo dorado. */
+.provider-card {
+    position: relative;
+    transition:
+        transform 350ms var(--ease-editorial),
+        box-shadow 350ms var(--ease-editorial),
+        border-color 350ms var(--ease-editorial);
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .provider-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 18px 40px -24px
+            color-mix(in srgb, var(--color-brand) 55%, transparent);
+    }
+}
+.provider-card.is-active {
+    border-color: color-mix(in srgb, var(--color-brand) 55%, transparent);
+}
+.provider-card.is-active::before {
+    content: '';
+    position: absolute;
+    inset-inline: 1.25rem;
+    top: -1px;
+    height: 2px;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        var(--color-brand),
+        transparent
+    );
+}
+
+/* Distintivo "activo": borde con degradado dorado que se desplaza lento. */
+.active-chip {
+    border: 1px solid transparent;
+    background:
+        linear-gradient(var(--color-card), var(--color-card)) padding-box,
+        linear-gradient(
+                110deg,
+                var(--color-brand),
+                color-mix(in srgb, var(--color-brand) 15%, transparent),
+                var(--color-brand)
+            )
+            border-box;
+    background-size:
+        100% 100%,
+        220% 100%;
+    animation: sheen 6s linear infinite;
+}
+@keyframes sheen {
+    to {
+        background-position:
+            0 0,
+            220% 0;
+    }
+}
+
+/* Barra de reparto: crece desde la izquierda. */
+.grow-bar {
+    transform-origin: left center;
+    animation: grow 1s var(--ease-editorial) both;
+}
+@keyframes grow {
+    from {
+        transform: scaleX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .active-chip,
+    .grow-bar {
+        animation: none;
+    }
+}
+</style>

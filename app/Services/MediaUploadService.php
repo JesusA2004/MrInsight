@@ -4,14 +4,18 @@ namespace App\Services;
 
 use App\Enums\MediaStatus;
 use App\Enums\MediaType;
+use App\Exceptions\StorageUnavailableException;
 use App\Jobs\GenerateImageVariants;
 use App\Jobs\ProcessVideoMedia;
 use App\Models\Media;
 use App\Models\MediaCollection;
 use App\Models\StorageProvider;
+use App\Services\Storage\StorageHealth;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Throwable;
 
 /**
  * Sube archivos al proveedor de almacenamiento activo y crea su registro en
@@ -45,6 +49,8 @@ class MediaUploadService
         'application/x-msdownload',
         'application/x-msdos-program',
     ];
+
+    public function __construct(private readonly StorageHealth $health) {}
 
     public function upload(UploadedFile $file, ?string $collectionPath = null): Media
     {
@@ -84,6 +90,12 @@ class MediaUploadService
         }
 
         $disk = $this->activeDisk();
+
+        // Con Synology activo, verifica el montaje SMB antes de escribir: un
+        // punto de montaje vacío (NAS desconectado) nunca recibe archivos y
+        // nunca se cae en silencio al disco local.
+        $this->health->assertWritable($disk);
+
         $collection = $this->resolveCollection($collectionPath ?? 'mr-insight/general');
         $type = MediaType::fromMime($mimeType);
 
@@ -96,8 +108,23 @@ class MediaUploadService
             throw new \RuntimeException('No se pudo leer el archivo temporal.');
         }
 
-        Storage::disk($disk)->put($path, $stream);
-        fclose($stream);
+        try {
+            $written = Storage::disk($disk)->put($path, $stream);
+        } catch (Throwable $e) {
+            $written = false;
+            Log::warning('No se pudo escribir el archivo en el almacenamiento activo.', ['disk' => $disk, 'exception' => $e::class]);
+            $this->discardPartial($disk, $path);
+        } finally {
+            if (is_resource($stream)) {
+                fclose($stream);
+            }
+        }
+
+        if ($written === false) {
+            throw $disk === StorageHealth::SYNOLOGY_DISK
+                ? new StorageUnavailableException
+                : new StorageUnavailableException('No se pudo guardar el archivo en el almacenamiento local. Revisa los permisos de storage/app/media.');
+        }
 
         [$width, $height] = $type === MediaType::Image ? $this->dimensions($absoluteTempPath) : [null, null];
 
@@ -125,11 +152,27 @@ class MediaUploadService
         return $media;
     }
 
+    /**
+     * Borra (mejor esfuerzo) un archivo que quedó a medio escribir.
+     */
+    private function discardPartial(string $disk, string $path): void
+    {
+        try {
+            Storage::disk($disk)->delete($path);
+        } catch (Throwable) {
+            // Si el almacenamiento ya no responde no hay nada más que hacer.
+        }
+    }
+
+    /**
+     * Disco del proveedor activo. Sin proveedor activo, el disco local.
+     * Nunca cambia de proveedor por su cuenta si el activo falla.
+     */
     public function activeDisk(): string
     {
         $provider = StorageProvider::query()->where('is_active', true)->first();
 
-        return $provider?->configValue('disk', 'media_local') ?? 'media_local';
+        return $provider?->diskName() ?? StorageHealth::LOCAL_DISK;
     }
 
     public function resolveCollection(string $path): MediaCollection

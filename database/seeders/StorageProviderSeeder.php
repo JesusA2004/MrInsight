@@ -7,33 +7,38 @@ use Illuminate\Database\Seeder;
 
 class StorageProviderSeeder extends Seeder
 {
+    /**
+     * `is_active` solo se fija al crear la fila: volver a sembrar en un
+     * servidor existente nunca cambia el proveedor activo (ni activa
+     * Synology ni regresa en silencio al disco local).
+     */
     public function run(): void
     {
-        StorageProvider::query()->updateOrCreate(
-            ['key' => 'local'],
-            [
-                'label' => 'Almacenamiento local',
-                'is_active' => true,
-                'config' => [
-                    'disk' => 'media_local',
-                    'root_path' => 'mr-insight',
-                ],
-            ]
-        );
+        $this->seed('local', 'Almacenamiento local', true, [
+            'disk' => 'media_local',
+            'root_path' => 'mr-insight',
+        ]);
 
-        // El proveedor Synology queda registrado pero inactivo: su conexión
-        // real se configurará en una fase posterior (ver /docs/SYNOLOGY_TAILSCALE.md).
-        // No se escriben aquí host, usuario, contraseña ni rutas reales.
-        StorageProvider::query()->updateOrCreate(
-            ['key' => 'synology'],
-            [
-                'label' => 'Synology NAS (vía Tailscale)',
-                'is_active' => false,
-                'config' => [
-                    'disk' => 'media_synology',
-                    'root_path' => null,
-                ],
-            ]
-        );
+        // El proveedor Synology queda registrado pero inactivo: se activa a
+        // mano desde /admin/almacenamiento y solo si la prueba completa del
+        // montaje SMB pasa. Las credenciales SMB las administra Linux (fstab),
+        // así que aquí solo se guarda el disco de Laravel.
+        $this->seed('synology', 'Synology NAS (vía Tailscale)', false, [
+            'disk' => 'media_synology',
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $config
+     */
+    private function seed(string $key, string $label, bool $activeOnCreate, array $config): void
+    {
+        $provider = StorageProvider::query()->firstOrNew(['key' => $key]);
+
+        if (! $provider->exists) {
+            $provider->is_active = $activeOnCreate;
+        }
+
+        $provider->fill(['label' => $label, 'config' => $config])->save();
     }
 }

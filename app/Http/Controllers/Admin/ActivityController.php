@@ -59,6 +59,7 @@ class ActivityController extends Controller
         'almacenamiento.configurado' => 'Almacenamiento configurado',
         'almacenamiento.proveedor_activado' => 'Proveedor de almacenamiento activado',
         'almacenamiento.probado' => 'Conexión de almacenamiento probada',
+        'almacenamiento.activacion_rechazada' => 'Activación de almacenamiento rechazada',
     ];
 
     /**

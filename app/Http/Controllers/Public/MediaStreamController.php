@@ -5,10 +5,13 @@ namespace App\Http\Controllers\Public;
 use App\Http\Controllers\Controller;
 use App\Models\Media;
 use App\Models\MediaVariant;
+use App\Services\Storage\StorageHealth;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\FilesystemException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 /**
@@ -21,14 +24,15 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  * existen como `path` de un registro Media o MediaVariant. Esto es a la vez
  * la defensa contra path traversal (una ruta con "../" simplemente no
  * coincide con ningún registro) y la manera de no revelar nunca el disco o
- * las credenciales reales del proveedor de almacenamiento activo — local
- * hoy, Synology por SFTP más adelante, sin cambiar este controlador.
+ * las credenciales reales del proveedor de almacenamiento — local o el NAS
+ * Synology montado por SMB — sin cambiar este controlador. Cada archivo se
+ * lee de su propio disco (`media.disk`), no del proveedor activo.
  */
 class MediaStreamController extends Controller
 {
     private const CHUNK_SIZE = 1024 * 1024; // 1 MB por lectura, nunca el archivo completo en memoria.
 
-    public function __invoke(Request $request, string $path): Response|StreamedResponse
+    public function __invoke(Request $request, string $path, StorageHealth $health): Response|StreamedResponse
     {
         $resolved = $this->resolve($path);
 
@@ -37,13 +41,26 @@ class MediaStreamController extends Controller
         }
 
         [$disk, $mimeType] = $resolved;
-        $storage = Storage::disk($disk);
 
-        if (! $storage->exists($path)) {
-            abort(404);
+        // NAS desmontado: 503 sin revelar rutas. Nunca se busca el archivo
+        // en el punto de montaje vacío ni en otro disco.
+        if (! $health->isReadable($disk)) {
+            return $this->unavailable();
         }
 
-        $size = (int) $storage->size($path);
+        $storage = Storage::disk($disk);
+
+        try {
+            if (! $storage->exists($path)) {
+                abort(404);
+            }
+
+            $size = (int) $storage->size($path);
+        } catch (FilesystemException $e) {
+            Log::warning('No se pudo leer un archivo multimedia del almacenamiento.', ['disk' => $disk, 'exception' => $e::class]);
+
+            return $this->unavailable();
+        }
         $headers = [
             'Content-Type' => $mimeType,
             'Accept-Ranges' => 'bytes',
@@ -84,9 +101,22 @@ class MediaStreamController extends Controller
         );
     }
 
+    private function unavailable(): Response
+    {
+        return response('Almacenamiento no disponible temporalmente.', 503, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+            'Retry-After' => '60',
+            'Cache-Control' => 'no-store',
+        ]);
+    }
+
     private function stream(Filesystem $storage, string $path, int $start, int $end): void
     {
-        $stream = $storage->readStream($path);
+        try {
+            $stream = $storage->readStream($path);
+        } catch (FilesystemException) {
+            return;
+        }
         if ($stream === null) {
             return;
         }

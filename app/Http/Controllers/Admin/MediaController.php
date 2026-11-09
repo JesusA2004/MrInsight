@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\StorageUnavailableException;
 use App\Http\Controllers\Controller;
 use App\Models\Media;
 use App\Models\MediaCollection;
@@ -63,7 +64,11 @@ class MediaController extends Controller
             'collection' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $media = $uploader->upload($request->file('file'), $request->input('collection'));
+        try {
+            $media = $uploader->upload($request->file('file'), $request->input('collection'));
+        } catch (StorageUnavailableException $e) {
+            return response()->json(['message' => $e->getMessage()], 503);
+        }
 
         $activity->log('multimedia.subido', $media, ['filename' => $media->original_filename]);
 

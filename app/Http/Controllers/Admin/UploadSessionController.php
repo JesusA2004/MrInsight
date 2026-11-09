@@ -4,19 +4,21 @@ namespace App\Http\Controllers\Admin;
 
 use App\Exceptions\IncompleteUploadException;
 use App\Exceptions\InvalidChunkException;
+use App\Exceptions\StorageUnavailableException;
 use App\Http\Controllers\Controller;
 use App\Models\Media;
 use App\Models\UploadSession;
 use App\Services\ActivityLogger;
 use App\Services\ChunkedUploadService;
 use App\Services\MediaUploadService;
+use App\Services\Storage\StorageHealth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class UploadSessionController extends Controller
 {
-    public function store(Request $request, ChunkedUploadService $chunks, MediaUploadService $uploader): JsonResponse
+    public function store(Request $request, ChunkedUploadService $chunks, MediaUploadService $uploader, StorageHealth $health): JsonResponse
     {
         Gate::authorize('create', Media::class);
 
@@ -27,6 +29,14 @@ class UploadSessionController extends Controller
             'collection' => ['nullable', 'string', 'max:255'],
             'checksumSha256' => ['nullable', 'string', 'size:64', 'regex:/^[0-9a-f]{64}$/i'],
         ]);
+
+        // Falla antes de recibir gigabytes si el proveedor activo (Synology)
+        // no está disponible. complete() vuelve a verificarlo al ensamblar.
+        try {
+            $health->assertWritable($uploader->activeDisk());
+        } catch (StorageUnavailableException $e) {
+            return response()->json(['message' => $e->getMessage()], 503);
+        }
 
         $session = $chunks->start(
             $validated['filename'],
@@ -105,6 +115,10 @@ class UploadSessionController extends Controller
             $media = $chunks->complete($session, $uploader);
         } catch (IncompleteUploadException $e) {
             return response()->json(['message' => $e->getMessage()], 422);
+        } catch (StorageUnavailableException $e) {
+            // La sesión y su archivo temporal se conservan: se puede volver a
+            // completar cuando el NAS esté disponible, sin subir todo de nuevo.
+            return response()->json(['message' => $e->getMessage()], 503);
         }
 
         $activity->log('multimedia.subido', $media, ['filename' => $media->original_filename, 'chunked' => true]);

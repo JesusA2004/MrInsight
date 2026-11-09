@@ -37,6 +37,15 @@ class StorageProvider extends Model
         ];
     }
 
+    /**
+     * Disco de Laravel del proveedor. Se deriva de la clave (no del config
+     * guardado) para no depender de filas heredadas con datos de SFTP.
+     */
+    public function diskName(): string
+    {
+        return $this->key === StorageProviderKey::Synology ? 'media_synology' : 'media_local';
+    }
+
     public function configValue(string $field, mixed $default = null): mixed
     {
         return $this->config[$field] ?? $default;
