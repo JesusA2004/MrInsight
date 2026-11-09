@@ -44,15 +44,16 @@ const nasTone = computed(() => {
 });
 
 const summary = computed(() => {
-    if (props.testing) return 'Probando la ruta del servidor al NAS.';
+    if (props.testing)
+        return `Probando la ruta del Servidor principal a ${props.nasName}.`;
     switch (props.status) {
         case 'available':
-            return 'Ruta completa: el servidor llega al NAS por Tailscale.';
+            return `Ruta completa: el Servidor principal llega a ${props.nasName} por Tailscale.`;
         case 'disconnected':
-            return 'Ruta interrumpida: el servidor no alcanza el NAS.';
+            return `Ruta interrumpida: el Servidor principal no alcanza ${props.nasName}.`;
         case 'permission_error':
         case 'write_error':
-            return 'El NAS responde, pero la carpeta tiene un problema de acceso.';
+            return `${props.nasName} responde, pero la carpeta tiene un problema de acceso.`;
         case 'error':
             return 'Ruta con error: revisa el resultado de la última prueba.';
         default:
@@ -76,9 +77,11 @@ const summary = computed(() => {
                 >
                     <Server class="size-4.5" />
                 </span>
-                <span class="text-[11px] leading-tight font-semibold">VPS</span>
+                <span class="text-[11px] leading-tight font-semibold"
+                    >Servidor</span
+                >
                 <span class="text-[10px] leading-tight text-muted-foreground"
-                    >MR. INSIGHT</span
+                    >Principal</span
                 >
             </li>
 

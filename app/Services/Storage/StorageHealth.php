@@ -109,7 +109,7 @@ class StorageHealth
                 'mount_path' => $this->synologyMountPath(),
             ]);
 
-            throw new StorageUnavailableException('El almacenamiento Synology está montado pero no permite escribir. No se guardó ningún archivo; avisa al administrador.');
+            throw new StorageUnavailableException('SynologyExtra está montado, pero no permite escribir. No se guardó ningún archivo; avisa al administrador.');
         }
     }
 
@@ -155,7 +155,7 @@ class StorageHealth
         if (! $state['pathExists']) {
             $checks['mounted'] = false;
 
-            return $this->result(self::DISCONNECTED, 'Synology: el punto de montaje no existe en el servidor.', $checks);
+            return $this->result(self::DISCONNECTED, 'SynologyExtra: la ruta de montaje no existe en el servidor.', $checks);
         }
 
         $checks['mounted'] = $state['mounted'];
@@ -164,8 +164,8 @@ class StorageHealth
             return $this->result(
                 self::DISCONNECTED,
                 $state['entry']
-                    ? 'Synology: el punto de montaje no es un recurso SMB/CIFS.'
-                    : 'Synology: el recurso compartido SMB no está montado. Verifica Tailscale y el montaje del servidor.',
+                    ? 'SynologyExtra: la ruta de montaje no corresponde a un recurso SMB/CIFS.'
+                    : 'SynologyExtra: la carpeta compartida no está montada. Verifica Tailscale y el montaje en el servidor.',
                 $checks,
             );
         }
@@ -173,16 +173,16 @@ class StorageHealth
         $checks['source'] = $state['source'];
 
         if (! $state['source']) {
-            return $this->result(self::DISCONNECTED, 'Synology: el punto de montaje apunta a un recurso compartido distinto al esperado.', $checks);
+            return $this->result(self::DISCONNECTED, 'SynologyExtra: la ruta de montaje apunta a una carpeta compartida distinta a la esperada.', $checks);
         }
 
         if (! is_writable($this->synologyMountPath())) {
             $checks['write'] = false;
 
-            return $this->result(self::PERMISSION_ERROR, 'Synology: el recurso está montado pero el servidor web no tiene permiso de escritura.', $checks);
+            return $this->result(self::PERMISSION_ERROR, 'SynologyExtra: la carpeta está montada, pero la plataforma no tiene permiso de escritura.', $checks);
         }
 
-        return $this->probe(self::SYNOLOGY_DISK, 'Synology', $checks);
+        return $this->probe(self::SYNOLOGY_DISK, 'SynologyExtra', $checks);
     }
 
     /**
@@ -192,7 +192,7 @@ class StorageHealth
      */
     public function checkLocal(): array
     {
-        return $this->probe(self::LOCAL_DISK, 'Almacenamiento local', [
+        return $this->probe(self::LOCAL_DISK, 'Servidor principal', [
             'mounted' => true, 'source' => true, 'write' => null, 'read' => null, 'delete' => null,
         ]);
     }
@@ -279,7 +279,7 @@ class StorageHealth
                 if ($this->looksLikePermissionError($e)) {
                     $checks['write'] = false;
 
-                    return $this->result(self::PERMISSION_ERROR, "{$label}: sin permiso para escribir en el almacenamiento.", $checks);
+                    return $this->result(self::PERMISSION_ERROR, "{$label}: sin permiso de escritura.", $checks);
                 }
             }
 
@@ -309,10 +309,10 @@ class StorageHealth
 
             $checks['delete'] = $deleted;
             if (! $deleted) {
-                return $this->result(self::WRITE_ERROR, "{$label}: no se pudo borrar el archivo de prueba.", $checks);
+                return $this->result(self::WRITE_ERROR, "{$label}: no se pudo eliminar el archivo de prueba.", $checks);
             }
 
-            return $this->result(self::AVAILABLE, "{$label}: escritura, lectura y borrado correctos.", $checks);
+            return $this->result(self::AVAILABLE, "{$label}: escritura, lectura y eliminación correctas.", $checks);
         } catch (Throwable $e) {
             $this->logSafe($label, 'probe', $e);
 

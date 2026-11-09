@@ -71,25 +71,25 @@ export interface StatusMeta {
 export const STATUS: Record<HealthStatus, StatusMeta> = {
     available: {
         label: 'Disponible',
-        hint: 'Montado, con lectura y escritura correctas.',
+        hint: 'Lectura, escritura y eliminación correctas.',
         icon: Wifi,
         tone: 'success',
     },
     disconnected: {
         label: 'Desconectado',
-        hint: 'El servidor no encuentra el recurso montado.',
+        hint: 'El servidor no detecta la carpeta compartida montada.',
         icon: CircleOff,
         tone: 'destructive',
     },
     permission_error: {
         label: 'Error de permisos',
-        hint: 'El usuario del sitio no tiene acceso a la carpeta.',
+        hint: 'La plataforma no tiene permiso para escribir en la carpeta.',
         icon: ShieldAlert,
         tone: 'warning',
     },
     write_error: {
         label: 'Error de escritura',
-        hint: 'Se puede leer, pero no guardar archivos nuevos.',
+        hint: 'No se pudieron guardar o verificar archivos nuevos.',
         icon: FileWarning,
         tone: 'warning',
     },

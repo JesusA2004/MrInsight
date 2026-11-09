@@ -187,7 +187,7 @@ const ENTER =
             <AdminPageHeader
                 eyebrow="Sistema"
                 title="Almacenamiento"
-                description="Dónde se guardan las fotografías y videos de la biblioteca. Las subidas nuevas van al proveedor activo; los archivos existentes se quedan donde están."
+                description="Ubicación de las fotografías y videos de la plataforma. Las subidas nuevas se guardan en el proveedor activo; los archivos existentes permanecen en su ubicación actual."
             />
 
             <!-- Resumen -->
@@ -255,7 +255,7 @@ const ENTER =
                             <AnimatedNumber :value="totalFiles" :delay="150" />
                         </p>
                         <p class="text-xs text-muted-foreground">
-                            Fotografías y videos de todos los proveedores.
+                            Fotografías y videos en todos los proveedores.
                         </p>
                     </div>
                     <div class="flex flex-col gap-3 p-5">
@@ -274,7 +274,7 @@ const ENTER =
                             />
                         </p>
                         <p class="text-xs text-muted-foreground">
-                            Suma de lo guardado en cada proveedor.
+                            Espacio utilizado en todos los proveedores.
                         </p>
                     </div>
                 </div>
@@ -375,8 +375,7 @@ const ENTER =
                                 >
                             </div>
                             <p class="mt-1 text-sm text-muted-foreground">
-                                Disco del mismo servidor que el sitio. Es el
-                                respaldo siempre disponible.
+                                Almacenamiento interno de la plataforma.
                             </p>
                         </div>
                     </header>
@@ -399,12 +398,12 @@ const ENTER =
                     <CapacityGauge
                         :space="local.space"
                         :library-bytes="local.filesBytes"
-                        label="Capacidad del VPS"
+                        label="Capacidad del servidor"
                         :delay="250"
                     >
                         <template #caption>
                             <p class="mb-2 text-sm font-semibold">
-                                Capacidad del VPS
+                                Capacidad del servidor
                             </p>
                         </template>
                         <template #empty>
@@ -417,7 +416,7 @@ const ENTER =
                     <dl class="grid grid-cols-2 gap-3">
                         <div class="rounded-lg bg-surface-raised p-3">
                             <dt class="text-xs text-muted-foreground">
-                                Archivos guardados
+                                Archivos almacenados
                             </dt>
                             <dd
                                 class="mt-1 font-display text-2xl leading-none font-semibold"
@@ -430,7 +429,7 @@ const ENTER =
                         </div>
                         <div class="rounded-lg bg-surface-raised p-3">
                             <dt class="text-xs text-muted-foreground">
-                                Ocupa la biblioteca
+                                Espacio utilizado
                             </dt>
                             <dd
                                 class="mt-1 font-display text-2xl leading-none font-semibold"
@@ -556,9 +555,10 @@ const ENTER =
                                 >
                             </div>
                             <p class="mt-1 text-sm text-muted-foreground">
-                                NAS {{ nas.name }} montado en el servidor por
+                                Almacenamiento en red, montado en el servidor
+                                por
                                 {{ nas.protocol }} a través de Tailscale. Ideal
-                                para videos pesados.
+                                para videos de gran tamaño.
                             </p>
                         </div>
                     </header>
@@ -620,7 +620,7 @@ const ENTER =
                             </div>
                             <div>
                                 <dt class="text-xs text-muted-foreground">
-                                    Punto de montaje
+                                    Ruta montada
                                 </dt>
                                 <dd>
                                     <code
@@ -634,21 +634,21 @@ const ENTER =
                         <CapacityGauge
                             :space="synology.space"
                             :library-bytes="synology.filesBytes"
-                            label="Capacidad del NAS"
+                            :label="`Capacidad de ${nas.name}`"
                             :delay="400"
                         >
                             <template #caption>
                                 <p class="mb-2 text-sm font-semibold">
-                                    Capacidad del NAS
+                                    Capacidad de {{ nas.name }}
                                 </p>
                             </template>
                             <template #empty>
                                 <p class="text-sm font-medium text-destructive">
-                                    Sin datos — NAS desconectado
+                                    Sin datos — {{ nas.name }} desconectado
                                 </p>
                                 <p class="mt-1 text-xs text-muted-foreground">
-                                    La capacidad aparece cuando el servidor
-                                    vuelve a ver el montaje.
+                                    La capacidad se mostrará cuando el servidor
+                                    vuelva a detectar el montaje.
                                 </p>
                             </template>
                         </CapacityGauge>
@@ -662,7 +662,7 @@ const ENTER =
                                     :delay="350"
                             /></span>
                             <span class="text-muted-foreground"
-                                >archivos guardados</span
+                                >archivos almacenados</span
                             ></span
                         >
                         <span
@@ -673,7 +673,7 @@ const ENTER =
                                     :delay="350"
                             /></span>
                             <span class="text-muted-foreground"
-                                >ocupa la biblioteca</span
+                                >espacio utilizado</span
                             ></span
                         >
                     </div>
@@ -766,7 +766,8 @@ const ENTER =
                             </p>
                         </template>
                         <span v-else class="text-xs text-muted-foreground"
-                            >Las subidas nuevas se guardan en el NAS.</span
+                            >Las subidas nuevas se guardan en
+                            {{ nas.name }}.</span
                         >
                     </footer>
                 </article>
@@ -806,14 +807,14 @@ const ENTER =
                 <AlertDialogDescription
                     v-if="pendingActivation?.key === 'synology'"
                 >
-                    Las subidas nuevas se guardarán en el NAS {{ nas.name }}.
-                    Los archivos que ya existen no se mueven: seguirán en el
-                    almacenamiento local y se servirán desde ahí.
+                    Las subidas nuevas se guardarán en {{ nas.name }}. Los
+                    archivos existentes no se mueven: permanecen en su ubicación
+                    actual y se seguirán sirviendo desde ahí.
                 </AlertDialogDescription>
                 <AlertDialogDescription v-else>
-                    Las subidas nuevas se guardarán en el disco del servidor.
-                    Los archivos que ya están en el NAS no se mueven y seguirán
-                    sirviéndose desde ahí.
+                    Las subidas nuevas se guardarán en el Servidor principal.
+                    Los archivos que ya están en {{ nas.name }} no se mueven y
+                    se seguirán sirviendo desde ahí.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -80,7 +80,7 @@ const danger = computed(() => usedPct.value >= 0.9);
             :aria-valuenow="space ? Math.round(usedPct * 100) : undefined"
             :aria-valuetext="
                 space
-                    ? `${Math.round(usedPct * 100)} % ocupado, ${formatBytes(space.freeBytes)} libres`
+                    ? `${Math.round(usedPct * 100)} % utilizado, ${formatBytes(space.freeBytes)} libres`
                     : 'Sin datos'
             "
         >
@@ -173,7 +173,7 @@ const danger = computed(() => usedPct.value >= 0.9);
                 <div
                     class="flex flex-col sm:flex-row sm:items-baseline sm:justify-between sm:gap-3"
                 >
-                    <dt class="text-xs text-muted-foreground">Usado</dt>
+                    <dt class="text-xs text-muted-foreground">Utilizado</dt>
                     <dd class="text-sm font-semibold tabular-nums">
                         {{
                             formatBytes(
@@ -192,7 +192,7 @@ const danger = computed(() => usedPct.value >= 0.9);
                 aria-hidden="true"
             >
                 <li class="inline-flex items-center gap-1.5">
-                    <span class="size-2 rounded-full bg-brand" /> Biblioteca
+                    <span class="size-2 rounded-full bg-brand" /> Multimedia
                 </li>
                 <li class="inline-flex items-center gap-1.5">
                     <span class="size-2 rounded-full bg-foreground/25" /> Otros

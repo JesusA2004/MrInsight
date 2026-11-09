@@ -119,7 +119,7 @@ class DashboardController extends Controller
                     'createdAt' => $log->created_at?->toIso8601String(),
                 ]),
             'storage' => [
-                'provider' => $provider !== null ? $provider->label : 'Almacenamiento local',
+                'provider' => $provider !== null ? $provider->displayName() : 'Servidor principal',
                 'bytes' => $mediaBytes,
             ],
             'upcoming' => CalendarController::events(now()->startOfDay(), now()->addDays(13)->endOfDay()),

@@ -59,7 +59,7 @@ class StorageController extends Controller
                     'result' => $result['status'],
                 ]);
 
-                return back()->with('error', 'No se activó Synology: '.$result['message']);
+                return back()->with('error', 'No se activó SynologyExtra: '.$result['message']);
             }
         }
 
@@ -68,7 +68,7 @@ class StorageController extends Controller
 
         $activity->log('almacenamiento.proveedor_activado', $provider, ['provider' => $provider->key->value]);
 
-        return back()->with('success', "«{$provider->label}» es ahora el proveedor activo.");
+        return back()->with('success', "«{$provider->displayName()}» es ahora el proveedor activo.");
     }
 
     public function test(StorageProvider $provider, ActivityLogger $activity): RedirectResponse
@@ -106,7 +106,7 @@ class StorageController extends Controller
         return [
             'id' => $provider->id,
             'key' => $provider->key->value,
-            'label' => $provider->label,
+            'label' => $provider->displayName(),
             'isActive' => $provider->is_active,
             'lastTestedAt' => $provider->last_tested_at?->toIso8601String(),
             'lastTestResult' => $provider->last_test_result,

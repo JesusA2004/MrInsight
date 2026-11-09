@@ -46,6 +46,15 @@ class StorageProvider extends Model
         return $this->key === StorageProviderKey::Synology ? 'media_synology' : 'media_local';
     }
 
+    /**
+     * Nombre visible del proveedor. Se deriva de la clave para que las filas
+     * existentes muestren la nomenclatura actual sin migrar datos.
+     */
+    public function displayName(): string
+    {
+        return $this->key === StorageProviderKey::Synology ? 'SynologyExtra' : 'Servidor principal';
+    }
+
     public function configValue(string $field, mixed $default = null): mixed
     {
         return $this->config[$field] ?? $default;

@@ -17,7 +17,7 @@ use Illuminate\Http\Request;
  */
 class StorageUnavailableException extends \RuntimeException
 {
-    public const DEFAULT_MESSAGE = 'El almacenamiento Synology no está disponible en este momento. No se guardó ningún archivo; inténtalo de nuevo más tarde o avisa al administrador.';
+    public const DEFAULT_MESSAGE = 'SynologyExtra no está disponible en este momento. No se guardó ningún archivo; inténtalo de nuevo más tarde o avisa al administrador.';
 
     public function __construct(string $message = self::DEFAULT_MESSAGE, ?\Throwable $previous = null)
     {

@@ -14,7 +14,7 @@ class StorageProviderSeeder extends Seeder
      */
     public function run(): void
     {
-        $this->seed('local', 'Almacenamiento local', true, [
+        $this->seed('local', 'Servidor principal', true, [
             'disk' => 'media_local',
             'root_path' => 'mr-insight',
         ]);
@@ -23,7 +23,7 @@ class StorageProviderSeeder extends Seeder
         // mano desde /admin/almacenamiento y solo si la prueba completa del
         // montaje SMB pasa. Las credenciales SMB las administra Linux (fstab),
         // así que aquí solo se guarda el disco de Laravel.
-        $this->seed('synology', 'Synology NAS (vía Tailscale)', false, [
+        $this->seed('synology', 'SynologyExtra', false, [
             'disk' => 'media_synology',
         ]);
     }

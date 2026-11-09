@@ -47,7 +47,7 @@ class MediaController extends Controller
             'filters' => $request->only(['tipo', 'coleccion', 'q', 'orden']),
             'collections' => MediaCollection::query()->orderBy('path')->get(['id', 'parent_id', 'name', 'path']),
             'storageBytes' => (int) Media::query()->sum('size'),
-            'activeProvider' => $provider !== null ? $provider->label : 'Almacenamiento local',
+            'activeProvider' => $provider !== null ? $provider->displayName() : 'Servidor principal',
         ]);
     }
 

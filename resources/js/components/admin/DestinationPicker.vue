@@ -29,7 +29,12 @@ export interface CollectionNode {
 
 const ROOT_FOLDER = '__raiz__';
 
-const { collections, providerLabel, stacked = false, idPrefix = 'destino' } = defineProps<{
+const {
+    collections,
+    providerLabel,
+    stacked = false,
+    idPrefix = 'destino',
+} = defineProps<{
     collections: CollectionNode[];
     providerLabel?: string;
     /** Apila los selectores en una sola columna (barras laterales). */
@@ -68,7 +73,9 @@ const coleccionSlug = computed<string>({
         // histórico); si no tiene carpetas, se guarda en la raíz de la colección.
         const coleccion = colecciones.value.find((c) => slugOf(c) === slug);
         const primera = carpetasDe(coleccion?.id)[0];
-        path.value = primera ? `mr-insight/${slug}/${slugOf(primera)}` : `mr-insight/${slug}`;
+        path.value = primera
+            ? `mr-insight/${slug}/${slugOf(primera)}`
+            : `mr-insight/${slug}`;
     },
 });
 
@@ -81,16 +88,19 @@ const carpetas = computed(() => carpetasDe(coleccionActual.value?.id));
 const carpetaSlug = computed<string>({
     get: () => segments.value[2] ?? ROOT_FOLDER,
     set: (slug) => {
-        path.value = slug === ROOT_FOLDER
-            ? `mr-insight/${coleccionSlug.value}`
-            : `mr-insight/${coleccionSlug.value}/${slug}`;
+        path.value =
+            slug === ROOT_FOLDER
+                ? `mr-insight/${coleccionSlug.value}`
+                : `mr-insight/${coleccionSlug.value}/${slug}`;
     },
 });
 
 /** Nombre legible del destino: «Colección › Carpeta». */
 const destinoLegible = computed(() => {
     const coleccion = coleccionActual.value?.name ?? segments.value[1] ?? '';
-    const carpeta = carpetas.value.find((c) => slugOf(c) === segments.value[2])?.name ?? segments.value[2];
+    const carpeta =
+        carpetas.value.find((c) => slugOf(c) === segments.value[2])?.name ??
+        segments.value[2];
 
     return carpeta ? `${coleccion} › ${carpeta}` : coleccion;
 });
@@ -99,37 +109,64 @@ const destinoLegible = computed(() => {
 <template>
     <div :class="cn('grid gap-3', !stacked && 'sm:grid-cols-2')">
         <div class="grid gap-1.5">
-            <Label :for="`${idPrefix}-coleccion`" class="text-xs text-muted-foreground">Colección</Label>
+            <Label
+                :for="`${idPrefix}-coleccion`"
+                class="text-xs text-muted-foreground"
+                >Colección</Label
+            >
             <Select v-model="coleccionSlug">
-                <SelectTrigger :id="`${idPrefix}-coleccion`" class="w-full pointer-coarse:data-[size=default]:h-11">
+                <SelectTrigger
+                    :id="`${idPrefix}-coleccion`"
+                    class="w-full pointer-coarse:data-[size=default]:h-11"
+                >
                     <SelectValue placeholder="Elige una colección" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem v-for="coleccion in colecciones" :key="coleccion.id" :value="slugOf(coleccion)">
+                    <SelectItem
+                        v-for="coleccion in colecciones"
+                        :key="coleccion.id"
+                        :value="slugOf(coleccion)"
+                    >
                         {{ coleccion.name }}
                     </SelectItem>
                 </SelectContent>
             </Select>
         </div>
         <div class="grid gap-1.5">
-            <Label :for="`${idPrefix}-carpeta`" class="text-xs text-muted-foreground">Carpeta</Label>
+            <Label
+                :for="`${idPrefix}-carpeta`"
+                class="text-xs text-muted-foreground"
+                >Carpeta</Label
+            >
             <Select v-model="carpetaSlug">
-                <SelectTrigger :id="`${idPrefix}-carpeta`" class="w-full pointer-coarse:data-[size=default]:h-11">
+                <SelectTrigger
+                    :id="`${idPrefix}-carpeta`"
+                    class="w-full pointer-coarse:data-[size=default]:h-11"
+                >
                     <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                     <SelectItem :value="ROOT_FOLDER">Sin subcarpeta</SelectItem>
-                    <SelectItem v-for="carpeta in carpetas" :key="carpeta.id" :value="slugOf(carpeta)">
+                    <SelectItem
+                        v-for="carpeta in carpetas"
+                        :key="carpeta.id"
+                        :value="slugOf(carpeta)"
+                    >
                         {{ carpeta.name }}
                     </SelectItem>
                 </SelectContent>
             </Select>
         </div>
-        <p class="col-span-full flex items-start gap-1.5 text-xs text-muted-foreground">
+        <p
+            class="col-span-full flex items-start gap-1.5 text-xs text-muted-foreground"
+        >
             <FolderOpen class="mt-px size-3.5 shrink-0" aria-hidden="true" />
             <span>
-                Se guardará en <span class="font-medium text-foreground">{{ destinoLegible }}</span>
-                · {{ providerLabel ?? 'Almacenamiento local' }}
+                Se guardará en
+                <span class="font-medium text-foreground">{{
+                    destinoLegible
+                }}</span>
+                · {{ providerLabel ?? 'Servidor principal' }}
             </span>
         </p>
     </div>
