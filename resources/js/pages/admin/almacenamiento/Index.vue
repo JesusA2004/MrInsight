@@ -31,7 +31,6 @@ import type {
 } from '@/components/admin/storage/storage';
 import {
     AlertDialog,
-    AlertDialogAction,
     AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
@@ -163,6 +162,9 @@ function confirmActivation() {
         {
             preserveScroll: true,
             onError: () => toast.error('No se pudo activar el proveedor.'),
+            onNetworkError: () => {
+                toast.error('Sin respuesta del servidor. Inténtalo de nuevo.');
+            },
             onFinish: () => {
                 activating.value = null;
                 pendingActivation.value = null;
@@ -821,16 +823,23 @@ const ENTER =
                 <AlertDialogCancel :disabled="activating !== null"
                     >Cancelar</AlertDialogCancel
                 >
-                <AlertDialogAction
+                <!-- Botón normal (no AlertDialogAction): AlertDialogAction
+                     cierra el diálogo antes de nuestro click y eso borraba
+                     el proveedor pendiente, así que nunca se enviaba la
+                     petición. El diálogo se cierra en onFinish. -->
+                <Button
+                    :class="PRESS"
                     :disabled="activating !== null"
-                    @click.prevent="confirmActivation"
+                    @click="confirmActivation"
                 >
                     <Loader2
                         v-if="activating !== null"
                         class="size-4 motion-safe:animate-spin"
                     />
-                    Activar proveedor
-                </AlertDialogAction>
+                    {{
+                        activating !== null ? 'Activando…' : 'Activar proveedor'
+                    }}
+                </Button>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>
